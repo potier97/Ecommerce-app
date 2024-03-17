@@ -65,7 +65,7 @@ export class TaskService {
   }
 
   @Interval(30000)
-  handleAddTaskCron() {
+  handleAddTaskCron(): void {
     this.logger.debug('Add random task every 30 seconds');
     const newTask: TaskDto = {
       title: `${faker.company.name()} - ${faker.person.fullName()} - ${faker.lorem.word()}`,
@@ -76,7 +76,7 @@ export class TaskService {
   }
 
   @Interval(60000)
-  handleUpdatedTaskCron() {
+  handleUpdatedTaskCron(): void {
     this.logger.debug('Update status random task every minute');
     if (this.tasks.length === 0) {
       return;
@@ -90,7 +90,7 @@ export class TaskService {
   }
 
   @Interval(1200000)
-  handleDeleteTaskCron() {
+  handleDeleteTaskCron(): void {
     this.logger.debug('Delete random task every 2 minutes');
     if (this.tasks.length === 0) {
       return;
