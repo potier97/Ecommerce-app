@@ -9,7 +9,7 @@ import { faker } from '@faker-js/faker';
 export class TaskService {
   private readonly logger = new Logger(TaskService.name);
 
-  private readonly tasks: TaskInterface[] = [];
+  private tasks: TaskInterface[] = [];
 
   public findAll(): TaskInterface[] {
     return this.tasks.filter((t: TaskInterface) => t.active);

@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  MinLength,
 } from 'class-validator';
 import { PartialType, ApiProperty } from '@nestjs/swagger';
 import { Status } from '../model/taks';
@@ -12,11 +13,13 @@ import { Status } from '../model/taks';
 export class TaskDto {
   @IsString()
   @IsNotEmpty()
+  @MinLength(3)
   @ApiProperty({ description: 'Nombre de la tarea' })
   public readonly title: string;
 
   @IsString()
   @IsNotEmpty()
+  @MinLength(3)
   @ApiProperty({ description: 'descripcion de la tarea' })
   public readonly description: string;
 

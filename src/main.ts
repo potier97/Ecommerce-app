@@ -1,13 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import * as compression from 'compression';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    })
+  );
 
   app.enableCors();
 
@@ -27,6 +34,15 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
-  await app.listen(3000);
+  const globalPrefix = 'v1';
+  const port = process.env.PORT || 3000;
+  await app.listen(port, () => {
+    Logger.log(
+      '🚀 Application is listening at http://localhost:' +
+        port +
+        '/' +
+        globalPrefix
+    );
+  });
 }
 bootstrap();
