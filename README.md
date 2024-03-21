@@ -17,6 +17,37 @@ Nest back para api de peliculasm en la que  progresivamente se va agregando dist
 $ yarn install
 ```
 
+## Ejecución de Docker-compose
+
+Para poder conectarse a la base de datos, se debe crear un archivo .env en la raíz del proyecto con las siguientes variables de entorno:
+
+```bash
+MONGODB_URI="mongodb://root:example@localhost:27017/dn-name"
+MONGO_INITDB_ROOT_USERNAME="root"
+MONGO_INITDB_ROOT_PASSWORD="example"
+MONGO_DATABASE="dn-name"
+MONGO_DATABASE_HOST="localhost"
+MONGO_DATABASE_PORT="27017"
+```
+
+Debe crear la carpeta `./mongo` en la raíz del proyecto para que se pueda montar el volumen de la base de datos.
+
+```bash
+mkdir mongo
+```
+
+Luego, se debe correr el siguiente comando:
+
+```bash
+yarn run db:up
+```
+
+Eliminar los contenedores creados:
+
+```bash
+yarn run db:delete
+```
+
 ## Running the app
 
 ```bash
