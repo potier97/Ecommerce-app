@@ -114,7 +114,7 @@ $ pm2 start dist/main.js --name movie-app
 O pasando el `.yml` de configuración:
 
 ```bash
-$ pm2-runtime ecosystem.yml 
+$ pm2-runtime process.yml 
 ```
 
 ## License
