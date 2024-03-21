@@ -87,6 +87,35 @@ Para correr solo una prueba unitaria en particular, se debe correr el siguiente 
 # unit tests
 $ jest --watch src/nombre-del-archivo.spec.ts
 ```
+## Construir Imagen Docker
+
+ - ENVIRONMENT_NAME -> Nombre del entorno que se desea construir (test, dev, prod)
+
+```bash
+$  docker build --build-arg ENVIRONMENT_NAME=test -t movie-app-test .
+```
+
+## Correr Imagen Docker
+
+Correr docker, se deben pasar las variables de entorno del archivo .env dado que se ignoran en el archivo Dockerfile.
+
+```bash
+$ docker run -e PM2_PUBLIC_KEY=rqzekuqwl9k69gp -e PM2_SECRET_KEY=xxx -e MONGODB_URI=xxx -e MONGO_INITDB_ROOT_USERNAME=xxx -e MONGO_INITDB_ROOT_PASSWORD=xxx -e MONGO_DATABASE=xxx -e MONGO_DATABASE_HOST=xxx -e MONGO_DATABASE_PORT=xxx  -p 3000:3000  --name mongonest-app movie-app-test
+```
+ Para correr en segundo plano, se debe añadir el flag `-d` al comando anterior.
+
+## PM2
+
+Para correr la aplicación con PM2, se debe correr el siguiente comando:
+
+```bash
+$ pm2 start dist/main.js --name movie-app
+```
+O pasando el `.yml` de configuración:
+
+```bash
+$ pm2-runtime ecosystem.yml 
+```
 
 ## License
 

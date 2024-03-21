@@ -1,0 +1,12 @@
+dist
+.git
+.gitignore
+node_modules
+functions
+mysql_data
+postgress_data
+documentation
+mongo
+# client/node_modules/
+npm-debug
+docker-compose*.yml

@@ -32,6 +32,12 @@ RUN npm set progress=false && npm config set depth 0
 RUN npm install
 # RUN npm install -g pm2 ansi-styles rimraf ajv
 RUN npm install -g pm2 
+# DEFINE ARGUMENTOS PARA LAS CLAVES DE PM2
+ARG PM2_PUBLIC_KEY
+ARG PM2_SECRET_KEY
+# DEFINE VARIABLES DE ENTORNO CON LOS ARGUMENTOS
+ENV PM2_PUBLIC_KEY $PM2_PUBLIC_KEY
+ENV PM2_SECRET_KEY $PM2_SECRET_KEY
 # # COPIAR DE AMBIENTE DE DESARROLLO
 COPY --from=development /app/dist /app/dist
 # # PERMISOS DE EJECUCION
