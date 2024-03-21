@@ -14,6 +14,7 @@ import envConfig from 'src/config/env-config';
         console.log(`Connecting to ${uri} ...`);
         return {
           uri,
+          dbName: 'tasks',
         };
       },
     }),

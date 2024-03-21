@@ -1,8 +1,8 @@
 version: '3'
 
 services: 
- dbMovies:
-  container_name: mongodbApp
+ dbTestApp:
+  container_name: mongoTaskAppTest
   image: mongo:6
   restart: always
   ports:
@@ -10,7 +10,7 @@ services:
   environment:
     - MONGO_INITDB_ROOT_USERNAME=userName
     - MONGO_INITDB_ROOT_PASSWORD=userPwd
-    - MONGO_INITDB_DATABASE=admin
+    - MONGO_INITDB_DATABASE=tasks
   volumes:
    - ./mongo:/data/db
   networks:

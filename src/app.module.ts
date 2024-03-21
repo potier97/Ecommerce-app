@@ -8,6 +8,7 @@ import { ConfigDataModule } from './config/config-data.module';
 import { ConfigService } from '@nestjs/config';
 import { Configuration } from './config/config.keys';
 import { MongoModule } from './database/mongo.module';
+import { HomeworkModule } from './homework/homework.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { MongoModule } from './database/mongo.module';
     ]),
     ScheduleModule.forRoot(),
     TaskModule,
+    HomeworkModule,
   ],
   controllers: [AppController],
   providers: [AppService],
