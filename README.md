@@ -116,7 +116,11 @@ O pasando el `.yml` de configuración:
 ```bash
 $ pm2-runtime process.yml 
 ```
+Ejecución de PM2 en modo de desarrollo:
 
+<div align="center">
+  <img src="./public/pm2.png" alt="pm2-dev" border="0">
+</div>
 ## License
 
 Nest is [MIT licensed](LICENSE).
