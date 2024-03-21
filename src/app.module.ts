@@ -7,10 +7,12 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigDataModule } from './config/config-data.module';
 import { ConfigService } from '@nestjs/config';
 import { Configuration } from './config/config.keys';
+import { MongoModule } from './database/mongo.module';
 
 @Module({
   imports: [
     ConfigDataModule,
+    MongoModule,
     ThrottlerModule.forRoot([
       {
         name: 'short',
