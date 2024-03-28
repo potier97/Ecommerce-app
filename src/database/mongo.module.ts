@@ -11,7 +11,7 @@ import envConfig from 'src/config/env-config';
         const { mongoUser, mongoPwd, mongoDb, mongoHost, mongoPort } =
           configService;
         const uri = `mongodb://${mongoUser}:${mongoPwd}@${mongoHost}:${mongoPort}/${mongoDb}`;
-        console.log(`Connecting to ${uri} ...`);
+        // console.log(`Connecting to ${uri} ...`);
         return {
           uri,
           dbName: 'tasks',

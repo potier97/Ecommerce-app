@@ -4,9 +4,6 @@ import * as Joi from 'joi';
 import { Environments } from './environments';
 import envConfig from './env-config';
 
-// console.log(Environments[process.env.NODE_ENV]);
-console.log(process.env.NODE_ENV);
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -20,6 +17,12 @@ console.log(process.env.NODE_ENV);
           .valid('development', 'production', 'test', 'provision')
           .default('development')
           .required(),
+        API_KEY: Joi.string().required(),
+        JWT_SECRET: Joi.string().required(),
+        JWT_EXPIRATION_TIME: Joi.string().required(),
+        JWT_REFRESH_SECRET: Joi.string().required(),
+        JWT_REFRESH_EXPIRATION_TIME: Joi.string().required(),
+        JWT_REFRESH_KEY: Joi.string().required(),
         PORT: Joi.number().default(3000),
         //DATABASE
         MONGODB_URI: Joi.string().required(),

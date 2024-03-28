@@ -15,7 +15,7 @@ async function bootstrap() {
 
   // PORT
   const port = configService.get<number>(Configuration.PORT);
-  console.log('PORT', port);
+  // console.log('PORT', port);
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -37,6 +37,7 @@ async function bootstrap() {
   });
 
   const config = new DocumentBuilder()
+    .addBearerAuth()
     .setTitle('Task Api')
     .setDescription('The task API description')
     .setVersion('1.0.0')

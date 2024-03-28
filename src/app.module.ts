@@ -9,6 +9,10 @@ import { ConfigService } from '@nestjs/config';
 import { Configuration } from './config/config.keys';
 import { MongoModule } from './database/mongo.module';
 import { HomeworkModule } from './homework/homework.module';
+import { UserModule } from './user/user.module';
+import { AuthModule } from './auth/auth.module';
+import { APP_GUARD } from '@nestjs/core';
+import { AccessApiKeyGuard } from './auth/guard/access-api-key/access-api-key.guard';
 
 @Module({
   imports: [
@@ -34,9 +38,17 @@ import { HomeworkModule } from './homework/homework.module';
     ScheduleModule.forRoot(),
     TaskModule,
     HomeworkModule,
+    UserModule,
+    AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: AccessApiKeyGuard,
+    },
+    AppService,
+  ],
 })
 export class AppModule implements OnModuleInit {
   private readonly logger = new Logger(AppModule.name);

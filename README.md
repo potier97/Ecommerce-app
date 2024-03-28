@@ -22,6 +22,10 @@ $ yarn install
 Para poder conectarse a la base de datos, se debe crear un archivo .env en la raíz del proyecto con las siguientes variables de entorno:
 
 ```bash
+NODE_ENV="development"
+API_KEY="rqzekuqwl9k69gp"
+JWT_SECRET="this-is-a-secret-key-123."
+JWT_EXPIRATION_TIME="3600s"
 MONGODB_URI="mongodb://root:example@localhost:27017/dn-name"
 MONGO_INITDB_ROOT_USERNAME="root"
 MONGO_INITDB_ROOT_PASSWORD="example"
@@ -121,6 +125,32 @@ Ejecución de PM2 en modo de desarrollo:
 <div align="center">
   <img src="./public/pm2.png" alt="pm2-dev" border="0">
 </div>
+
+## Apis
+
+Para el consumo de las apis debe enviar el `x-api-key` en el header de la petición, además este debe ser incluido en las variables de entorno del archivo `.env`.
+
+ > Ejemplo: 
+
+```bash
+API_KEY="rqzekuqwl9k69gp"
+```
+
+## Seguridad JWT
+
+Para el consumo de las apis privadas debe enviar el `Authorization` en el header de la petición, además este debe ser incluido en las variables de entorno del archivo `.env`.
+
+ > Ejemplo: 
+
+```bash
+JWT_SECRET="secret-key-123"
+JWT_EXPIRATION_TIME="20h"
+```
+
+
+
+
+
 ## License
 
 Nest is [MIT licensed](LICENSE).
