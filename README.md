@@ -148,7 +148,16 @@ JWT_EXPIRATION_TIME="20h"
 ```
 
 
+## Refresh Token
 
+Para el consumo de las apis privadas debe enviar el `Authorization` en el header de la petición, además este debe ser incluido en las variables de entorno del archivo `.env`.
+
+ > Ejemplo: 
+
+```bash
+JWT_REFRESH_SECRET="refresh-secret-key-123"
+JWT_REFRESH_EXPIRATION_TIME="1h"
+```
 
 
 ## License
