@@ -1,5 +1,5 @@
 export interface CustomResponseDto<T> {
-  status: number;
+  status: boolean;
   message: string;
   content: T;
 }

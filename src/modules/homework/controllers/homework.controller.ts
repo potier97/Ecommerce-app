@@ -7,14 +7,18 @@ import {
   Param,
   Delete,
   Version,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 //SERVICES
 import { HomeworkService } from '../services/homework.service';
 import { CreateHomeworkDto } from '../dto/create-homework.dto';
 import { UpdateHomeworkDto } from '../dto/update-homework.dto';
+import { JwtAuthGuard } from 'auth/guard/jwt-auth/jwt-auth.guard';
 
+@ApiBearerAuth()
 @ApiTags('homework')
+@UseGuards(JwtAuthGuard)
 @Controller('homework')
 export class HomeworkController {
   constructor(private readonly homeworkService: HomeworkService) {}

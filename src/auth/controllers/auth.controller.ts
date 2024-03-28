@@ -55,7 +55,7 @@ export class AuthController {
     try {
       this.logger.log(`User ${req.user.email} get profile`);
       return {
-        status: HttpStatus.OK,
+        status: true,
         message: 'Profile',
         content: await this.authService.getProfile(req.user.email),
       };

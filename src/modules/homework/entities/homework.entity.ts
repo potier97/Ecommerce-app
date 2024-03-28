@@ -7,6 +7,7 @@ export type HomeworkDocument = Homework & Document;
 
 @Schema({
   collection: 'homework',
+  timestamps: true,
 })
 export class Homework {
   @Prop({ unique: true, required: true, minlength: 3 })
