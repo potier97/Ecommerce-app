@@ -9,8 +9,9 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { Match } from 'src/shared/decorator/match/match.decorator';
-import { Genre } from 'src/shared/interfaces/genre.enum';
+//SHARED
+import { Match } from 'shared/decorator/match/match.decorator';
+import { Genre } from 'shared/interfaces/genre.enum';
 
 export class SignUpDto {
   @IsString()

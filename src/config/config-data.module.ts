@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
+//CONFIG
 import { Environments } from './environments';
 import envConfig from './env-config';
 

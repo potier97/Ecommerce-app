@@ -4,9 +4,9 @@ import { faker } from '@faker-js/faker';
 import * as request from 'supertest';
 //IMPORTS
 import { AppModule } from '../../src/app.module';
-import { TaskService } from '../../src/task/service/task.service';
-import { TaskDto, UpdateTaskDto } from '../../src/task/dto/task.dto';
-import { Status } from '../../src/task/model/taks';
+import { TaskService } from 'modules/task/services/task.service';
+import { TaskDto, UpdateTaskDto } from 'modules/task/dto/task.dto';
+import { Status } from 'shared/interfaces/statusTask.enum';
 
 describe('TaskController (e2e)', () => {
   let app: INestApplication;
@@ -49,6 +49,7 @@ describe('TaskController (e2e)', () => {
       .post('/task')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(taskDto)
       .expect(201);
 
@@ -65,6 +66,7 @@ describe('TaskController (e2e)', () => {
       .post('/task')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(taskDto)
       .expect(201);
 
@@ -77,6 +79,7 @@ describe('TaskController (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post('/task')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(invalidTaskDto)
       .expect(400);
 
@@ -103,6 +106,7 @@ describe('TaskController (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post('/task')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(invalidTaskDto)
       .expect(400);
 
@@ -126,6 +130,7 @@ describe('TaskController (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post('/task')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(invalidTaskDto)
       .expect(400);
 
@@ -148,6 +153,7 @@ describe('TaskController (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post('/task')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(invalidTaskDto)
       .expect(400);
 
@@ -167,6 +173,7 @@ describe('TaskController (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post('/task')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(validTaskDto)
       .expect(201);
     const task = taskService.findAll()[0];
@@ -182,6 +189,7 @@ describe('TaskController (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post('/task')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(invalidTaskDto)
       .expect(400);
 
@@ -205,6 +213,7 @@ describe('TaskController (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post('/task')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(invalidTaskDto)
       .expect(400);
 
@@ -227,6 +236,7 @@ describe('TaskController (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post('/task')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(invalidTaskDto)
       .expect(400);
 
@@ -246,6 +256,7 @@ describe('TaskController (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post('/task')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(validTaskDto)
       .expect(201);
     const task = taskService.findAll()[0];
@@ -267,6 +278,7 @@ describe('TaskController (e2e)', () => {
       .put(`/task/${taskId}`)
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(updateTaskDto)
       .expect(200);
 
@@ -282,6 +294,7 @@ describe('TaskController (e2e)', () => {
       .put(`/task/${taskId}`)
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .send(updateTaskDto)
       .expect(404);
 
@@ -304,6 +317,7 @@ describe('TaskController (e2e)', () => {
       .delete(`/task/${taskId}`)
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .expect(200);
     // Verificar que la tarea haya sido eliminada
     const tasks = await taskService.findAll();
@@ -314,6 +328,7 @@ describe('TaskController (e2e)', () => {
       .delete(`/task/${taskId}`)
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .expect(404);
   });
 
@@ -335,6 +350,7 @@ describe('TaskController (e2e)', () => {
       .get('/task')
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .expect(200);
     // Verificar que todas las tareas se devuelvan correctamente
     expect(response.body).toHaveLength(newAcountTask);
@@ -352,6 +368,7 @@ describe('TaskController (e2e)', () => {
       .delete(`/task/${nonExistingTaskId}`)
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
+      .set('x-api-key', 'RlJ6CAFeyiqAbedAphos')
       .expect(404);
 
     expect(response.body).toEqual({

@@ -10,8 +10,9 @@ import { ConfigType } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { Request } from 'express';
-import envConfig from 'src/config/env-config';
-import { IS_PUBLIC_KEY } from 'src/auth/decorator/public.decorator';
+import { IS_PUBLIC_KEY } from '../../decorator/public.decorator';
+//CONFIG
+import envConfig from 'config/env-config';
 
 //Importados
 

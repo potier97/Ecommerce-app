@@ -91,6 +91,19 @@ Para correr solo una prueba unitaria en particular, se debe correr el siguiente 
 # unit tests
 $ jest --watch src/nombre-del-archivo.spec.ts
 ```
+
+## Pruebas E2E 
+
+Para correr las prueba E2E, se debe correr el siguiente comando:
+
+```bash
+yarn test:e2e
+```
+
+Devuelve el reporte de las pruebas E2E de solo el cubrimiento de los controladores, asi mismo en la carpeta `coverage-e2e` se puede encontrar el reporte de las pruebas E2E, esta carpeta esta siendo ignorada por el archivo `.gitignore`.
+
+
+
 ## Construir Imagen Docker
 
  - ENVIRONMENT_NAME -> Nombre del entorno que se desea construir (test, dev, prod)

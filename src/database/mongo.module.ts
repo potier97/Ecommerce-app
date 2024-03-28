@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import envConfig from 'src/config/env-config';
+import envConfig from 'config/env-config';
 
 @Module({
   imports: [

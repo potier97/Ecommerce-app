@@ -1,9 +1,37 @@
 {
   "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
+  "rootDir": "../",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
-  }
+  },
+  "coverageDirectory": "coverage-e2e",
+  "collectCoverage": true,
+  "coverageReporters": ["html", "text", "json", "lcov"],
+  "moduleDirectories": ["<rootDir>/../", "node_modules"],
+  "coveragePathIgnorePatterns": [
+    "/node_modules/",
+    "src/main.ts",
+    "/node_modules/",
+    "/dist/",
+    "/mongo/",
+    "/public/",
+    "/config/",
+    "/.*(?<!\\.controller)\\.ts$"   
+  ],
+  "moduleNameMapper": {
+    "^modules/(.*)$": "<rootDir>/src/modules/$1",
+    "^shared/(.*)$": "<rootDir>/src/shared/$1",
+    "^config/(.*)$": "<rootDir>/src/config/$1",
+    "^auth/(.*)$": "<rootDir>/src/auth/$1"
+  },
+  "testPathIgnorePatterns": [
+    "<rootDir>/config/",
+    "<rootDir>/coverage/",
+    "<rootDir>/dist/",
+    "<rootDir>/mongo/",
+    "<rootDir>/node_modules/",
+    "<rootDir>/public/"
+  ]
 }

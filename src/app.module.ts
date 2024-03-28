@@ -1,18 +1,26 @@
 import { Logger, Module, OnModuleInit } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { TaskModule } from './task/task.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ConfigDataModule } from './config/config-data.module';
 import { ConfigService } from '@nestjs/config';
-import { Configuration } from './config/config.keys';
-import { MongoModule } from './database/mongo.module';
-import { HomeworkModule } from './homework/homework.module';
-import { UserModule } from './user/user.module';
-import { AuthModule } from './auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
+//SERVICES
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { Configuration } from './config/config.keys';
+import { ConfigDataModule } from './config/config-data.module';
+//GUARDS
 import { AccessApiKeyGuard } from './auth/guard/access-api-key/access-api-key.guard';
+//DATABASE
+import { MongoModule } from './database/mongo.module';
+//AUTH
+import { AuthModule } from './auth/auth.module';
+//MODULES
+import { TaskModule } from './modules/task/task.module';
+import { HomeworkModule } from './modules/homework/homework.module';
+import { UserModule } from './modules/user/user.module';
+import { ProductModule } from './modules/product/product.module';
+import { PurchaseModule } from './modules/purchase/purchase.module';
+import { PurchaseDetailModule } from './modules/purchase-detail/purchase-detail.module';
 
 @Module({
   imports: [
@@ -40,6 +48,9 @@ import { AccessApiKeyGuard } from './auth/guard/access-api-key/access-api-key.gu
     HomeworkModule,
     UserModule,
     AuthModule,
+    ProductModule,
+    PurchaseModule,
+    PurchaseDetailModule,
   ],
   controllers: [AppController],
   providers: [

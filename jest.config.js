@@ -1,0 +1,37 @@
+module.exports = {
+  moduleFileExtensions: ['ts', 'js', 'json'],
+  rootDir: './src',
+  testRegex: '.*\\.spec\\.ts$',
+  transform: {
+    '^.+\\.(t|j)s$': 'ts-jest',
+  },
+  collectCoverageFrom: ['**/*.(t|j)s'],
+  moduleDirectories: ['<rootDir>/', 'node_modules'],
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    'src/main.ts',
+    '/node_modules/',
+    '/dist/',
+    '/mongo/',
+    '/public/',
+    '/config/',
+  ],
+  coverageDirectory: '../coverage',
+  collectCoverage: true,
+  coverageReporters: ['html', 'text', 'json', 'lcov'],
+  testEnvironment: 'node',
+  moduleNameMapper: {
+    '^modules/(.*)$': '<rootDir>/modules/$1',
+    '^shared/(.*)$': '<rootDir>/shared/$1',
+    '^config/(.*)$': '<rootDir>/config/$1',
+    '^auth/(.*)$': '<rootDir>/auth/$1',
+  },
+  testPathIgnorePatterns: [
+    '<rootDir>/config/',
+    '<rootDir>/coverage/',
+    '<rootDir>/dist/',
+    '<rootDir>/mongo/',
+    '<rootDir>/node_modules/',
+    '<rootDir>/public/',
+  ],
+};
