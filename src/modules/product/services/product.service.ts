@@ -13,6 +13,8 @@ import { Product } from '../entities/product.entity';
 import { CategoryProducts } from 'shared/interfaces/categoryProducts.enum';
 import { taxRates } from 'shared/util/taxesRates';
 import { capitalizeText } from 'shared/util/capitalizateText';
+import { PaginationDto } from 'shared/dtos/pagination.dto';
+import { IPaginateData } from 'shared/interfaces/paginateData.interface';
 
 @Injectable()
 export class ProductService {
@@ -73,10 +75,13 @@ export class ProductService {
 
   /**
    * Return all active products
+   * @param {{PaginationDto}} params - Pagination data
    * @returns {Promise<Product[]>}
    */
-  async findAll(): Promise<Product[]> {
-    const result = await this.productModel
+  async findAll(params: PaginationDto): Promise<IPaginateData<Product>> {
+    const { size, page } = params;
+    const total = await this.productModel.countDocuments({ active: true });
+    const result: Product[] = await this.productModel
       .find(
         { active: true },
         {
@@ -91,8 +96,19 @@ export class ProductService {
           active: 1,
         }
       )
+      .skip(page * size)
+      .limit(size)
       .exec();
-    return result;
+    return {
+      data: result,
+      meta: {
+        currentPage: page,
+        itemCount: result.length,
+        itemsPerPage: size,
+        totalItems: total,
+        totalPages: Math.ceil(total / size),
+      },
+    };
   }
 
   /**
@@ -268,5 +284,28 @@ export class ProductService {
     }
     this.logger.log(`Change ${amount} to product: ${result.id}`);
     return result;
+  }
+
+  /**
+   * Validate if product exists with active status and published
+   * @param id
+   * @returns
+   */
+  async productExist(id: string): Promise<boolean> {
+    const result = await this.productModel.findOne(
+      { _id: id, active: true, published: true },
+      { _id: 1 }
+    );
+    return !!result;
+  }
+
+  /**
+   * Validate if product exists
+   * @param id
+   * @returns
+   */
+  async productAlreadyExist(id: string): Promise<boolean> {
+    const result = await this.productModel.findOne({ _id: id }, { _id: 1 });
+    return !!result;
   }
 }

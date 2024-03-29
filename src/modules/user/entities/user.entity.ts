@@ -11,34 +11,34 @@ export type UserDocument = User & Document;
   timestamps: true,
 })
 export class User {
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   firstName: string;
 
-  @Prop({ default: '' })
+  @Prop({ default: '', type: String })
   secondName?: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   lastName: string;
 
-  @Prop({ default: '' })
+  @Prop({ default: '', type: String })
   familyName?: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, type: String, index: true })
   email: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   password: string;
 
-  @Prop({ required: true, enum: UserType })
+  @Prop({ required: true, enum: UserType, type: String })
   role: string;
 
-  @Prop({ required: true, enum: Genre })
+  @Prop({ required: true, enum: Genre, type: String })
   genre: string;
 
-  @Prop({ required: true, default: true })
+  @Prop({ required: true, default: true, type: Boolean })
   status: boolean;
 
-  @Prop({ required: true, default: false })
+  @Prop({ required: true, default: false, type: Boolean })
   completedProfile: boolean;
 }
 

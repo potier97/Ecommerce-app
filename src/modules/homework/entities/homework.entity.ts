@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 //INTERFACES
 import { Status } from 'shared/interfaces/statusTask.enum';
 
-export type HomeworkDocument = Homework & Document;
+export type HomeworkDocument = HydratedDocument<Homework>;
 
 @Schema({
   collection: 'homework',

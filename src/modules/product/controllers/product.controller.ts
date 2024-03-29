@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   Put,
+  Query,
 } from '@nestjs/common';
 // SERVICES
 import { ProductService } from '../services/product.service';
@@ -18,6 +19,9 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'auth/guard/jwt-auth/jwt-auth.guard';
 import { CustomResponseDto } from 'shared/interfaces/customResponse.interface';
 import { Product } from '../entities/product.entity';
+import { MongoIdPipe } from 'shared/pipes/mongo-id/mongo-id.pipe';
+import { PaginationDto } from 'shared/dtos/pagination.dto';
+import { IPaginateData } from 'shared/interfaces/paginateData.interface';
 
 @ApiTags('Product')
 @ApiBearerAuth()
@@ -40,8 +44,10 @@ export class ProductController {
   }
 
   @Get()
-  async findAll(): Promise<CustomResponseDto<Product[]>> {
-    const result = await this.productService.findAll();
+  async findAll(
+    @Query() params: PaginationDto
+  ): Promise<CustomResponseDto<IPaginateData<Product>>> {
+    const result = await this.productService.findAll(params);
     return {
       content: result,
       message: 'All products',
@@ -50,7 +56,9 @@ export class ProductController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<CustomResponseDto<Product>> {
+  async findOne(
+    @Param('id', MongoIdPipe) id: string
+  ): Promise<CustomResponseDto<Product>> {
     const resault = await this.productService.findOne(id);
     return {
       content: resault,
@@ -61,7 +69,7 @@ export class ProductController {
 
   @Put(':id')
   async update(
-    @Param('id') id: string,
+    @Param('id', MongoIdPipe) id: string,
     @Body() updateProductDto: UpdateProductDto
   ): Promise<CustomResponseDto<Product>> {
     const result = await this.productService.update(id, updateProductDto);
@@ -73,7 +81,9 @@ export class ProductController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<CustomResponseDto<boolean>> {
+  async remove(
+    @Param('id', MongoIdPipe) id: string
+  ): Promise<CustomResponseDto<boolean>> {
     const result = await this.productService.remove(id);
     return {
       content: result,
@@ -95,7 +105,9 @@ export class ProductController {
   }
 
   @Post('publish/:id')
-  async publish(@Param('id') id: string): Promise<CustomResponseDto<Product>> {
+  async publish(
+    @Param('id', MongoIdPipe) id: string
+  ): Promise<CustomResponseDto<Product>> {
     const result = await this.productService.publish(id);
     return {
       content: result,
@@ -106,7 +118,7 @@ export class ProductController {
 
   @Post('unpublish/:id')
   async unpublish(
-    @Param('id') id: string
+    @Param('id', MongoIdPipe) id: string
   ): Promise<CustomResponseDto<Product>> {
     const result = await this.productService.unpublish(id);
     return {
@@ -118,7 +130,7 @@ export class ProductController {
 
   @Post('schedule/:id')
   async schedule(
-    @Param('id') id: string,
+    @Param('id', MongoIdPipe) id: string,
     @Body() updateProductDto: UpdateProductDto
   ): Promise<CustomResponseDto<Product>> {
     const result = await this.productService.scheduleProduct(
@@ -134,7 +146,7 @@ export class ProductController {
 
   @Post('change-amout/:id')
   async addAmount(
-    @Param('id') id: string,
+    @Param('id', MongoIdPipe) id: string,
     @Body('quantity') quantity: number
   ): Promise<CustomResponseDto<Product>> {
     const result = await this.productService.changeAmount(id, quantity);

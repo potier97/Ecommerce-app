@@ -15,6 +15,7 @@ import { HomeworkService } from '../services/homework.service';
 import { CreateHomeworkDto } from '../dto/create-homework.dto';
 import { UpdateHomeworkDto } from '../dto/update-homework.dto';
 import { JwtAuthGuard } from 'auth/guard/jwt-auth/jwt-auth.guard';
+import { MongoIdPipe } from 'shared/pipes/mongo-id/mongo-id.pipe';
 
 @ApiBearerAuth()
 @ApiTags('homework')
@@ -37,14 +38,14 @@ export class HomeworkController {
 
   @Version('1')
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', MongoIdPipe) id: string) {
     return this.homeworkService.findOne(id);
   }
 
   @Version('1')
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param('id', MongoIdPipe) id: string,
     @Body() updateHomeworkDto: UpdateHomeworkDto
   ) {
     return this.homeworkService.update(id, updateHomeworkDto);
@@ -52,7 +53,7 @@ export class HomeworkController {
 
   @Version('1')
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id', MongoIdPipe) id: string) {
     return this.homeworkService.remove(id);
   }
 }

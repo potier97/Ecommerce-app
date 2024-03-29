@@ -1,8 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 import { CategoryProducts } from 'shared/interfaces/categoryProducts.enum';
 
-export type ProductsDocument = Product & Document;
+export type ProductsDocument = HydratedDocument<Product>;
 
 @Schema({
   collection: 'product',
