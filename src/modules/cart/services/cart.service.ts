@@ -165,6 +165,7 @@ export class CartService {
             'products.product.name': 1,
             'products.product.description': 1,
             'products.product.price': 1,
+            'products.product.quantity': 1,
             'products.quantity': 1,
           },
         },

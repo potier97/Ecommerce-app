@@ -52,6 +52,16 @@ export class CreateUserDto {
 
   @IsString()
   @IsNotEmpty()
+  @MinLength(10)
+  @MaxLength(10)
+  @ApiProperty({
+    description: 'Número de teléfono',
+    example: '3000000000',
+  })
+  readonly phone: string;
+
+  @IsString()
+  @IsNotEmpty()
   @MinLength(8)
   @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
     message:

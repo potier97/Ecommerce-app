@@ -54,6 +54,7 @@ export class AuthService {
       repeatPassword: user.repeatPassword,
       password: pwd,
       genre: user.genre,
+      phone: user.phone,
       lastName: user.lastNasme,
       role: UserType.CLIENT,
       familyName: '',

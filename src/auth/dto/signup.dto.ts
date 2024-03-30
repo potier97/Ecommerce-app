@@ -45,6 +45,14 @@ export class SignUpDto {
 
   @IsString()
   @IsNotEmpty()
+  @MinLength(10)
+  @MaxLength(10)
+  @Matches(/^[0-9]*$/, { message: 'El teléfono solo puede contener números' })
+  @ApiProperty({ description: 'Telefono Usuario' })
+  public readonly phone: string;
+
+  @IsString()
+  @IsNotEmpty()
   @MinLength(4)
   @MaxLength(20)
   @Match('password', { message: 'Las contraseñas no coinciden' })

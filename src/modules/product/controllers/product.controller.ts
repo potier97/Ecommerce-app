@@ -11,11 +11,11 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 // SERVICES
 import { ProductService } from '../services/product.service';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'auth/guard/jwt-auth/jwt-auth.guard';
 import { CustomResponseDto } from 'shared/interfaces/customResponse.interface';
 import { Product } from '../entities/product.entity';

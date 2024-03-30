@@ -25,6 +25,7 @@ export class UserService {
       role: UserType[createUserDto.role],
       familyName: createUserDto.familyName,
       secondName: createUserDto.secondName,
+      phone: createUserDto.phone,
       completedProfile: false,
       status: true,
     };
@@ -54,7 +55,6 @@ export class UserService {
   public async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     this.logger.log(`Update user with id: ${id}`);
     const existingUser = await this.findUserByEmail(updateUserDto.email);
-    console.log(existingUser);
     if (existingUser && existingUser['id'] !== id) {
       throw new BadRequestException({
         message: 'El correo ya está en uso',

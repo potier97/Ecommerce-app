@@ -117,7 +117,22 @@ export class ProductService {
    * @returns {Promise<Product>}
    */
   async findOne(id: string): Promise<Product> {
-    const result = this.productModel.findById({ _id: id, active: true }).exec();
+    const result = await this.productModel
+      .findById(
+        { _id: id, active: true },
+        {
+          _id: 0,
+          name: 1,
+          description: 1,
+          quantity: 1,
+          category: 1,
+          price: 1,
+          tax: 1,
+          active: 1,
+          published: 1,
+        }
+      )
+      .exec();
     if (!result) {
       throw new NotFoundException({
         message: 'Product not found',
