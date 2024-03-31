@@ -203,7 +203,7 @@ Ejemplo de recibo de compra en formato PDF:
   <img src="./public/recibo.png" alt="pdf" border="0">
 </div>
 
- > Descargue el ejemplo de recibo de compra en formato PDF [aquí](./public/recibo.pdf).
+ > Descargue el ejemplo de recibo de compra en formato PDF [aquí](./public/2024230-6608e2c837a8606b92222f45.pdf).
 
 ## License
 
