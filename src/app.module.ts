@@ -15,7 +15,7 @@ import { MongoModule } from './database/mongo.module';
 //AUTH
 import { AuthModule } from './auth/auth.module';
 //MODULES
-import { TaskModule } from './modules/task/task.module';
+// import { TaskModule } from './modules/task/task.module';
 import { HomeworkModule } from './modules/homework/homework.module';
 import { UserModule } from './modules/user/user.module';
 import { ProductModule } from './modules/product/product.module';
@@ -44,7 +44,8 @@ import { CartModule } from './modules/cart/cart.module';
       },
     ]),
     ScheduleModule.forRoot(),
-    TaskModule,
+    //TASK API ON MEMORY
+    // TaskModule,
     HomeworkModule,
     UserModule,
     AuthModule,

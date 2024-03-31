@@ -1,8 +1,12 @@
 {
-  "name": "movie-app-nestjs",
-  "version": "0.0.1",
-  "description": "This is a simple app for create movies",
-  "author": "",
+  "name": "ecomm-app-backend",
+  "version": "0.1.1",
+  "description": "This is a simple app for e-commerce",
+  "author": {
+    "email": "nicolaspotier97@gmail.com",
+    "name": "Nicolas Potier",
+    "url": "https://nipoanz.com"
+  },
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
@@ -50,6 +54,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
+    "pdfkit": "^0.15.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
     "uuid": "^9.0.1"

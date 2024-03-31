@@ -10,11 +10,9 @@ import { ConfigType } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { Request } from 'express';
-import { IS_PUBLIC_KEY } from '../../decorator/public.decorator';
 //CONFIG
 import envConfig from 'config/env-config';
-
-//Importados
+import { IS_PUBLIC_KEY } from '../../decorator/public.decorator';
 
 @Injectable()
 export class AccessApiKeyGuard implements CanActivate {
@@ -39,7 +37,7 @@ export class AccessApiKeyGuard implements CanActivate {
       throw new HttpException(
         {
           status: HttpStatus.UNAUTHORIZED,
-          message: 'Acesso No autorizado',
+          message: 'Unauthorized access',
         },
         HttpStatus.UNAUTHORIZED
       );

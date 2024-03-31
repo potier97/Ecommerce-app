@@ -1,15 +1,33 @@
 <p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
+  <a href="http://nipoanz.com/" target="blank"><img src="./public/logo.png" width="300" alt="NPA Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+<!-- Alinear -->
+<p align="center">
+  <a href="https://www.npmjs.com/package/@nestjs/core" target="_blank"><img src="https://img.shields.io/badge/NestJS-v7.6.15-red" alt="NestJS" /></a>
+  <a href="https://www.npmjs.com/package/mongoose" target="_blank"><img src="https://img.shields.io/badge/Mongoose-v5.10.17-blue" alt="Mongoose" /></a>
+  <a href="https://www.npmjs.com/package/mongoose" target="_blank"><img src="https://img.shields.io/badge/TypeScript-v4.0.3-blue" alt="TypeScript" /></a>
+  <a href="https://www.npmjs.com/package/mongoose" target="_blank"><img src="https://img.shields.io/badge/Jest-v26.6.3-blue" alt="Jest" /></a>
+  <a href="https://www.npmjs.com/package/mongoose" target="_blank"><img src="https://img.shields.io/badge/Docker-v20.10.2-blue" alt="Docker" /></a>
+  <a href="https://www.npmjs.com/package/mongoose" target="_blank"><img src="https://img.shields.io/badge/PM2-v4.5.6-blue" alt="PM2" /></a>
+  <a href="https://www.npmjs.com/package/mongoose" target="_blank"><img src="https://img.shields.io/badge/NodeJS-v14.15.4-blue" alt="NodeJS" /></a>
+  <a href="https://www.npmjs.com/package/mongoose" target="_blank"><img src="https://img.shields.io/badge/MongoDB-v4.4.3-blue" alt="MongoDB" /></a>
+<a href="https://www.nipoanz.com" target="_blank">
+<br>
+<img src="https://img.shields.io/website?url=https%3A%2F%2Fnipoanz.com&up_message=NPA&up_color=white&down_color=red&labelColor=%2333aa9a&color=%23335566
+" alt="Nipoanz" /></a>
+</p>
+ 
 
 
 
 ## Description
 
-Nest back para api de peliculasm en la que  progresivamente se va agregando distintas funcionalidades.
+Nest back para api de un E-COMMERCE, el cual se encarga de gestionar la información de los productos, categorías, usuarios, roles, permisos, entre otros. Ademas de hacer el proceso de autenticación y autorización de los usuarios.
+
+Puede comprar, añadiendo productos al carrito de compras, y realizar el proceso de pago, además de obtener el recibo de la compra.
+
+Asi mismo puede hacer compras
 
 ## Installation
 
@@ -23,15 +41,21 @@ Para poder conectarse a la base de datos, se debe crear un archivo .env en la ra
 
 ```bash
 NODE_ENV="development"
-API_KEY="rqzekuqwl9k69gp"
-JWT_SECRET="this-is-a-secret-key-123."
+API_KEY="XXXXXXXXXXXXXXXXXXX"
+JWT_SECRET="XXXXXX-789"
 JWT_EXPIRATION_TIME="3600s"
+JWT_REFRESH_SECRET="XXXXXX-123"
+JWT_REFRESH_EXPIRATION_TIME="30m"
+JWT_REFRESH_KEY="XXXXXX-456"
 MONGODB_URI="mongodb://root:example@localhost:27017/dn-name"
 MONGO_INITDB_ROOT_USERNAME="root"
 MONGO_INITDB_ROOT_PASSWORD="example"
 MONGO_DATABASE="dn-name"
 MONGO_DATABASE_HOST="localhost"
 MONGO_DATABASE_PORT="27017"
+#SI QUIERE USAR PM2
+PM2_PUBLIC_KEY="XXX"
+PM2_SECRET_KEY="XXX"
 ```
 
 Debe crear la carpeta `./mongo` en la raíz del proyecto para que se pueda montar el volumen de la base de datos.
@@ -172,6 +196,16 @@ JWT_REFRESH_SECRET="refresh-secret-key-123"
 JWT_REFRESH_EXPIRATION_TIME="1h"
 ```
 
+
+## PDF - Recibo de Compra
+
+Ejemplo de recibo de compra en formato PDF:
+
+<div align="center">
+  <img src="./public/recibo.png" alt="pdf" border="0">
+</div>
+
+ > Descargue el ejemplo de recibo de compra en formato PDF [aquí](./public/recibo.pdf).
 
 ## License
 

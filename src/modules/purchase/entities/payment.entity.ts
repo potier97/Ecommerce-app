@@ -44,6 +44,18 @@ export class PaymentInfo {
     required: true,
     type: Number,
   })
+  public tax: number;
+
+  @Prop({
+    required: true,
+    type: Number,
+  })
+  public subtotal: number;
+
+  @Prop({
+    required: true,
+    type: Number,
+  })
   public total: number;
 
   @Prop({

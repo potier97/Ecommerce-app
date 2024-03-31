@@ -21,6 +21,9 @@ import { capitalizeText } from 'shared/util/capitalizateText';
 import { PurchaseItem } from '../entities/purchase-item.entity';
 import { ShippingMethod } from 'shared/interfaces/shippingMethod.enum';
 import { shippingRates } from 'shared/util/shippingRates';
+import { InvoicePdf } from 'shared/interfaces/invoicePdf.interface';
+import { IInvoiceData } from 'shared/interfaces/invoiceData.interface';
+import { invoicePdf } from 'shared/util/makePdf';
 
 @Injectable()
 export class PurchaseService {
@@ -61,7 +64,15 @@ export class PurchaseService {
       const completeName = `${user.firstName} ${user.secondName} ${user.lastName} ${user.familyName}`;
       const capitalizateName = capitalizeText(completeName);
 
-      console.log(cart);
+      //VALIDATE IF PURCHASE IS FINANCED AND SHARES IS MORE THAN 1
+      if (createPurchaseDto.financed && createPurchaseDto.share < 2) {
+        throw new BadRequestException({
+          message: 'Shares must be greater than 1',
+          error: true,
+          status: 400,
+        });
+      }
+
       this.logger.log(`Creating Purchase with: ${JSON.stringify(cart)}`);
       //throw new Error('Error');
       const productsToBuy: PurchaseItem[] = [];
@@ -128,6 +139,18 @@ export class PurchaseService {
       this.logger.log(`Debt Payment: $ ${totalDebt}`);
       this.logger.log(`Amount of products to buy: ${productsToBuy.length}`);
 
+      //VALIDATE IF PURCHASE IS FINANCED AND INITIAL PAYMENT IS LESS THAN TOTAL
+      if (
+        createPurchaseDto.financed &&
+        createPurchaseDto.initialPayment < totalPayment
+      ) {
+        throw new BadRequestException({
+          message: 'Initial payment must be greater than total payment',
+          error: true,
+          status: 400,
+        });
+      }
+
       //ERROR CONTROL
       //throw new Error('Error');
       // console.log('Creating purchase');
@@ -154,6 +177,8 @@ export class PurchaseService {
           financed: createPurchaseDto.financed,
           shares: createPurchaseDto.share,
           currentShare: 1,
+          subtotal: totalCost.subtotal,
+          tax: totalCost.tax,
           total: totalPayment,
           debt: totalDebt,
           paidAt: new Date(),
@@ -206,10 +231,26 @@ export class PurchaseService {
       .find(
         { active: true },
         {
-          payment: 1,
-          customer: 1,
-          shipping: 1,
-          active: 1,
+          _id: 0,
+          products: 0,
+          'customer._id': 0,
+          'customer.userId': 0,
+          'customer.phone': 0,
+          'payment._id': 0,
+          'payment.paymentMethod': 0,
+          'payment.currentShare': 0,
+          'payment.debt': 0,
+          'payment.tax': 0,
+          'payment.subtotal': 0,
+          'payment.financed': 0,
+          'shipping._id': 0,
+          'shipping.address': 0,
+          'shipping.country': 0,
+          'shipping.shippingCost': 0,
+          createdAt: 0,
+          updatedAt: 0,
+          active: 0,
+          __v: 0,
         }
       )
       .skip(page * size)
@@ -232,9 +273,25 @@ export class PurchaseService {
    * @param id - Product id
    * @returns {Promise<Product>}
    */
-  async findOne(id: string): Promise<Purchase> {
+  async findOne(id: string): Promise<IInvoiceData> {
     const result = await this.purchaseModel
-      .findById({ _id: id, active: true })
+      .findOne(
+        { _id: id, active: true },
+        {
+          'products._id': 0,
+          'products.product': 0,
+          'products.category': 0,
+          'customer._id': 0,
+          'customer.userId': 0,
+          'customer.phone': 0,
+          'payment._id': 0,
+          'shipping._id': 0,
+          createdAt: 0,
+          updatedAt: 0,
+          active: 0,
+          __v: 0,
+        }
+      )
       .exec();
     if (!result) {
       throw new NotFoundException({
@@ -279,7 +336,12 @@ export class PurchaseService {
     return monthlyPayment;
   }
 
-  async downloadInvoice(id: string): Promise<boolean> {
+  /**
+   * Generate invoice pdf by purchase id
+   * @param id - pushase id
+   * @returns {{InvoicePdf}} - Invoice pdf
+   */
+  async downloadInvoice(id: string): Promise<InvoicePdf> {
     //VALIDATE IF PURCHASE EXISTS
     const purchase = this.purchaseModel.exists({ _id: id });
     if (!purchase) {
@@ -289,15 +351,35 @@ export class PurchaseService {
         status: 404,
       });
     }
-    //TODO: GENERAR PDF
-    return true;
+    //OBTENER LA FECHA ENFORMATO YYYYMMDD CON DATE-FNS
+    const date = new Date();
+    const idDate = `${date.getFullYear()}${date.getMonth()}${date.getDate()}`;
+    const fileName = `${idDate}-${id}.pdf`;
+    const purchaseData = await this.findOne(id);
+    //GENERATE PDF
+    const data = await invoicePdf(purchaseData);
+    // console.log(data);
+    return {
+      data,
+      fileName,
+    };
   }
 
   async remove(id: string): Promise<boolean> {
-    const result = await this.purchaseModel.findByIdAndUpdate(id, {
-      active: false,
-    });
+    const result = await this.purchaseModel.findOneAndUpdate(
+      {
+        _id: id,
+        active: true,
+      },
+      {
+        active: false,
+      },
+      {
+        projection: { _id: 1 },
+      }
+    );
     if (!result) {
+      this.logger.error(`Purchase with id ${id} not found`);
       throw new NotFoundException({
         message: 'Purchase not found',
         error: true,
