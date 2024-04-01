@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsDefined,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -10,7 +11,6 @@ import {
   Max,
   Min,
   MinLength,
-  ValidateIf,
 } from 'class-validator';
 import { PaymentMethod } from 'shared/interfaces/paymentMethod.enum';
 import { ShippingMethod } from 'shared/interfaces/shippingMethod.enum';
@@ -60,7 +60,7 @@ export class CreatePurchaseDto {
   @IsInt()
   @Min(1)
   @Max(36)
-  @ValidateIf((object, value) => validInstallments.includes(value))
+  @IsIn(validInstallments, { message: 'Invalid installment value' })
   @ApiProperty({ description: 'Número de cuotas a financiar' })
   public readonly share: number;
 

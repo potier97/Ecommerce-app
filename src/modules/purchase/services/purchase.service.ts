@@ -268,11 +268,9 @@ export class PurchaseService {
     if (createPurchaseDto.financed) {
       totalDebt = totalCost - createPurchaseDto.initialPayment;
       //VALIDATE IF SHARES IS GREATER THAN 1
-      if (
-        createPurchaseDto.share < 2 &&
-        validInstallments.includes(createPurchaseDto.share)
-      ) {
-        this.purchaseException('Shares must be greater than 1');
+      const isIncluded = validInstallments.includes(createPurchaseDto.share);
+      if (createPurchaseDto.share < 2 || !isIncluded) {
+        this.purchaseException('The actions must be one of those allowed');
       }
       shares = createPurchaseDto.share;
       currentShare = 1;
