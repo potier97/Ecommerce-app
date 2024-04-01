@@ -2,8 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { PurchaseItem, PurchaseItemSchema } from './purchase-item.entity';
 import { Customer, CustomerSchema } from './customer.entity';
-import { PaymentInfo, PaymentInfoSchema } from './payment.entity';
+import { InvoiceInfo, InvoiceInfoSchema } from './invoice.entity';
 import { ShippingInfo, ShippingInfoSchema } from './shipping-method.entity';
+import { Installment, InstallmentSchema } from './installment.entity';
 
 export type PurchaseDocument = HydratedDocument<Purchase>;
 
@@ -18,8 +19,11 @@ export class Purchase {
   @Prop({ type: CustomerSchema, required: true })
   customer: Customer;
 
-  @Prop({ type: PaymentInfoSchema, required: true })
-  payment: PaymentInfo;
+  @Prop({ type: InvoiceInfoSchema, required: true })
+  invoice: InvoiceInfo;
+
+  @Prop({ type: [InstallmentSchema] })
+  installments: Installment[];
 
   @Prop({ type: ShippingInfoSchema, required: true })
   shipping: ShippingInfo;

@@ -14,6 +14,7 @@ import { CreateCartItemDto } from '../dto/create-cart.dto';
 import { JwtAuthGuard } from 'auth/guard/jwt-auth/jwt-auth.guard';
 import { CustomResponseDto } from 'shared/interfaces/customResponse.interface';
 import { UpdateCartItemDto } from '../dto/update-cart.dto';
+import { ICartList } from 'shared/interfaces/cartList.interface';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -47,7 +48,7 @@ export class CartController {
   }
 
   @Get()
-  async getCart(@Request() req): Promise<CustomResponseDto<any>> {
+  async getCart(@Request() req): Promise<CustomResponseDto<ICartList[]>> {
     const result = await this.cartService.getCart(req.user.id);
     return {
       content: result,

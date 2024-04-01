@@ -14,8 +14,7 @@ import {
 } from 'class-validator';
 import { PaymentMethod } from 'shared/interfaces/paymentMethod.enum';
 import { ShippingMethod } from 'shared/interfaces/shippingMethod.enum';
-
-const validShares = [1, 3, 6, 12, 18, 24, 30, 36];
+import { validInstallments } from 'shared/util/installments';
 
 export class CreatePurchaseDto {
   @IsDefined()
@@ -61,7 +60,7 @@ export class CreatePurchaseDto {
   @IsInt()
   @Min(1)
   @Max(36)
-  @ValidateIf((object, value) => validShares.includes(value))
+  @ValidateIf((object, value) => validInstallments.includes(value))
   @ApiProperty({ description: 'Número de cuotas a financiar' })
   public readonly share: number;
 

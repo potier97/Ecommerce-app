@@ -6,6 +6,7 @@ import { CreateCartItemDto } from '../dto/create-cart.dto';
 import { Cart } from '../entities/cart.entity';
 import { ProductService } from 'modules/product/services/product.service';
 import { UpdateCartItemDto } from '../dto/update-cart.dto';
+import { ICartList } from 'shared/interfaces/cartList.interface';
 
 @Injectable()
 export class CartService {
@@ -42,7 +43,6 @@ export class CartService {
         _id: 1,
       }
     );
-    this.logger.log(`Existing cart item: ${existingCartItem}`);
     //VALIDATE IF PRODUCT EXISTS ON USER CART
     if (existingCartItem) {
       const cart = await this.cartModel
@@ -87,34 +87,21 @@ export class CartService {
     }
   }
 
-  async getCart(userId: string): Promise<any> {
+  async getCart(userId: string): Promise<ICartList[]> {
     this.logger.log(`Get cart for user: ${userId}`);
     const validateUserCart = await this.cartModel.exists({ userId });
-    if (!validateUserCart) {
-      return {
-        products: [],
-      };
-    }
-    // return await this.cartModel
-    //   .findOne({ userId }, { _id: 0, products: 1 })
-    //   .populate('products.product', {
-    //     name: 1,
-    //     description: 1,
-    //     price: 1,
-    //     published: 1,
-    //     active: 1,
-    //   })
-    //   .exec();
+    if (!validateUserCart) return [];
+    //GET USER CART
     const result = await this.cartModel
       .aggregate([
         { $match: { userId: new mongoose.Types.ObjectId(userId) } },
         { $limit: 1 },
         {
           $lookup: {
-            from: 'product', // Nombre de la colección de productos
-            localField: 'products.product', // Campo en el carrito que hace referencia al producto
-            foreignField: '_id', // Campo en la colección de productos que hace referencia al ID del producto
-            as: 'populatedProducts', // Nombre del campo donde se almacenarán los productos poblados
+            from: 'product', // COLLECTION NAME
+            localField: 'products.product', // REFER FIELD IN THE COLLECTION IN CART COLLECTION
+            foreignField: '_id', // REFER FIELD IN THE COLLECTION IN PRODUCT COLLECTION
+            as: 'populatedProducts', // NEW FIELD NAME - OUTPUT
           },
         },
         {
@@ -171,7 +158,7 @@ export class CartService {
         },
       ])
       .exec();
-    return result[0];
+    return result[0]?.products || [];
   }
 
   async removeProduct(

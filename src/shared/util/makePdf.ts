@@ -44,13 +44,13 @@ export const invoicePdf = async (
   //ADD RESUME DATA PAYMENT
   invoiceListData.push({
     name: RESUME_INVOICE_ITEMS_SUBTOTAL,
-    price: invoiceData.payment.subtotal,
+    price: invoiceData.invoice.subtotal,
     quantity: 0,
     tax: 0,
   });
   invoiceListData.push({
     name: RESUME_INVOICE_ITEMS_TAX,
-    price: invoiceData.payment.tax,
+    price: invoiceData.invoice.tax,
     quantity: 0,
     tax: 0,
   });
@@ -62,7 +62,7 @@ export const invoicePdf = async (
   });
   invoiceListData.push({
     name: RESUME_INVOICE_ITEMS_TOTAL,
-    price: invoiceData.payment.total,
+    price: invoiceData.invoice.total,
     quantity: 0,
     tax: 0,
   });
@@ -133,7 +133,7 @@ const generateCustomerInformation = (data: any, invoice: IInvoiceData) => {
     .fontSize(12)
     .font('Helvetica')
     .fillColor('#000000')
-    .text(`${format(invoice.payment.paidAt, 'PPpp')}`, 85, 210)
+    .text(`${format(invoice.invoice.paidAt, 'PPpp')}`, 85, 210)
     .fontSize(12)
     .font('Helvetica-Bold')
     .fillColor('#33658a')
@@ -141,7 +141,7 @@ const generateCustomerInformation = (data: any, invoice: IInvoiceData) => {
     .fontSize(12)
     .font('Helvetica')
     .fillColor('#000000')
-    .text(`${invoice.payment.share}`, 85, 230)
+    .text(`${invoice.invoice.share}`, 85, 230)
 
     .fontSize(12)
     .font('Helvetica-Bold')

@@ -18,11 +18,19 @@ import { IPaginateData } from 'shared/interfaces/paginateData.interface';
 import { Purchase } from '../entities/purchase.entity';
 import { ProductService } from 'modules/product/services/product.service';
 import { capitalizeText } from 'shared/util/capitalizateText';
-import { PurchaseItem } from '../entities/purchase-item.entity';
 import { ShippingMethod } from 'shared/interfaces/shippingMethod.enum';
 import { shippingRates } from 'shared/util/shippingRates';
 import { InvoicePdf } from 'shared/interfaces/invoicePdf.interface';
 import { IInvoiceData } from 'shared/interfaces/invoiceData.interface';
+import { IPrices } from 'shared/interfaces/prices.interface';
+import { ICartList } from 'shared/interfaces/cartList.interface';
+// import { IInstallment } from 'shared/interfaces/installment.interface';
+import { validInstallments } from 'shared/util/installments';
+import { ICustomerPurchase } from 'shared/interfaces/customerPurchase';
+import { IShippingPurchase } from 'shared/interfaces/shippingPurchase.interface';
+import { IInvoicePurchase } from 'shared/interfaces/invoicePurchase.interface';
+import { IProductPurchase } from 'shared/interfaces/productPurchase.interface';
+import { IPurchase } from 'shared/interfaces/purchase.interface';
 import { invoicePdf } from 'shared/util/makePdf';
 
 @Injectable()
@@ -50,159 +58,177 @@ export class PurchaseService {
     try {
       this.logger.log(`Creating Purchase for user: ${userId}`);
       //VALIDATE IF USER HAS PRODUCTS IN CART
-      const cart = await this.cartService.getCart(userId);
-      if (cart.products.length === 0) {
-        throw new BadRequestException({
-          message: 'Cart is empty',
-          error: true,
-          status: 400,
-        });
+      const userProducts = await this.cartService.getCart(userId);
+      if (userProducts.length === 0) {
+        this.purchaseException('Cart is empty');
       }
 
       //GET USER DATA
-      const user = await this.userService.findOne(userId);
-      const completeName = `${user.firstName} ${user.secondName} ${user.lastName} ${user.familyName}`;
-      const capitalizateName = capitalizeText(completeName);
+      const customer = await this.loadUserData(userId);
 
-      //VALIDATE IF PURCHASE IS FINANCED AND SHARES IS MORE THAN 1
-      if (createPurchaseDto.financed && createPurchaseDto.share < 2) {
-        throw new BadRequestException({
-          message: 'Shares must be greater than 1',
-          error: true,
-          status: 400,
-        });
-      }
+      //GET PRODUCTS LIST TO BUY
+      const products = await this.updateProductStock(userProducts);
 
-      this.logger.log(`Creating Purchase with: ${JSON.stringify(cart)}`);
-      //throw new Error('Error');
-      const productsToBuy: PurchaseItem[] = [];
-      //SE RECORRE CADA UNO DE LOS PRODUCTOS DEL CARRITO Y SE VALIDA SU CANTIDAD PARA COMPRAR
-      for (const product of cart.products) {
-        const id = product.product['_id'];
-        const amount = product.quantity;
-        //BUSCAR EL PRODUCTO
-        const currentProduct = await this.productService.findOne(id);
-        //console.log(currentProduct);
-        if (currentProduct && product.quantity <= currentProduct.quantity) {
-          this.logger.log(`Product ${currentProduct.name} is available`);
-          await productsToBuy.push({
-            product: id,
-            name: currentProduct.name,
-            quantity: amount,
-            category: currentProduct.category,
-            price: currentProduct.price,
-            tax: currentProduct.tax,
-          });
-          //UPDATE PRODUCT STOCK
-          await this.productService.changeAmount(id, -amount);
-        }
-      }
-      //ERROR CONTROL
-      //throw new Error('Error');
+      //CALCULATE TOTAL PRICES
+      const totalCost = await this.calculateTotalPrice(products);
 
-      const totalCost = await productsToBuy.reduce(
-        (acc, curr) => {
-          const totalPrice = curr.price * curr.quantity;
-          const totalTax = curr.tax * curr.quantity;
-          const subtotal = totalPrice - totalTax;
-          return {
-            subtotal: acc.subtotal + subtotal,
-            tax: acc.tax + totalTax,
-            total: acc.total + totalPrice,
-          };
-        },
-        {
-          tax: 0,
-          subtotal: 0,
-          total: 0,
-        }
+      //LOAD SHIPPING DATA
+      const shipping = this.loadShippingData(createPurchaseDto, totalCost);
+
+      //LOAD INVOICE DATA
+      const invoice = this.loadInvoiceData(
+        createPurchaseDto,
+        totalCost,
+        shipping.shippingCost
       );
-      this.logger.log(`Subtotal: $ ${totalCost.subtotal}`);
-      this.logger.log(`Total Tax: $ ${totalCost.tax}`);
-      this.logger.log(`Total Cost: $ ${totalCost.total}`);
 
-      //CALCULATE SHIPPING COST
-      const shippingCost = this.calculateShippingCost(
-        totalCost.total,
-        createPurchaseDto.shippingMethod
-      );
-      this.logger.log(`Shipping Cost: $ ${shippingCost}`);
-
-      //VALIDATE INITIAL PAYMENT
-      const totalPayment = shippingCost + totalCost.total;
-      let totalDebt = 0;
-      if (createPurchaseDto.financed) {
-        totalDebt = totalPayment - createPurchaseDto.initialPayment;
-      }
-
-      this.logger.log(`Total Payment: $ ${totalPayment}`);
-      this.logger.log(`Debt Payment: $ ${totalDebt}`);
-      this.logger.log(`Amount of products to buy: ${productsToBuy.length}`);
-
-      //VALIDATE IF PURCHASE IS FINANCED AND INITIAL PAYMENT IS LESS THAN TOTAL
-      if (
-        createPurchaseDto.financed &&
-        createPurchaseDto.initialPayment < totalPayment
-      ) {
-        throw new BadRequestException({
-          message: 'Initial payment must be greater than total payment',
-          error: true,
-          status: 400,
-        });
-      }
-
-      //ERROR CONTROL
-      //throw new Error('Error');
-      // console.log('Creating purchase');
-      // console.log(productsToBuy);
-      //CREATE PURCHASE
-      const purchase = await this.purchaseModel.create({
-        products: productsToBuy,
-        customer: {
-          userId: user['_id'],
-          userName: capitalizateName,
-          email: user.email,
-          phone: user.phone,
-        },
-        shipping: {
-          shippingMethod: createPurchaseDto.shippingMethod,
-          address: createPurchaseDto.address,
-          city: createPurchaseDto.city,
-          country: createPurchaseDto.country,
-          shippingCost: shippingCost,
-        },
-        payment: {
-          paymentMethod: createPurchaseDto.paymentMethod,
-          paid: !createPurchaseDto.financed,
-          financed: createPurchaseDto.financed,
-          shares: createPurchaseDto.share,
-          currentShare: 1,
-          subtotal: totalCost.subtotal,
-          tax: totalCost.tax,
-          total: totalPayment,
-          debt: totalDebt,
-          paidAt: new Date(),
-        },
+      //FINAL PAYMENT VALUES
+      this.logger.log(`Total Payment: $ ${invoice.total}`);
+      this.logger.log(`Debt Payment: $ ${invoice.debt}`);
+      this.logger.log(`Amount of products to buy: ${products.length}`);
+      //CREATE DOC
+      const newPurchase: IPurchase = {
+        customer: customer,
+        products: products,
+        shipping: shipping,
+        invoice: invoice,
         active: true,
-      });
+      };
+      if (createPurchaseDto.financed) {
+        newPurchase.installments = [];
+      }
+      const purchase = await this.purchaseModel.create(newPurchase);
+      const pId = purchase['_id'];
 
       if (purchase) {
         await this.cartService.clearCart(userId);
+        this.logger.log(`Purchase created: ${pId}`);
       }
-      //await purchase.save({ session });
-      this.logger.log(`Purchase created: ${purchase['_id']}`);
 
       //COMMIT TRANSACTION
       await session.commitTransaction();
       session.endSession();
       //SE CREA LA COMPRA
-      return `Purchase created successfully with id: ${purchase['_id']}`;
+      return `Purchase created successfully: ${pId}`;
     } catch (e) {
       await session.abortTransaction();
       session.endSession();
-      this.logger.error(`Error creating purchase: ${e.message}`);
-      throw new Error(e.message);
+      const errorMsg = e.message ? e.message : e;
+      this.logger.error(`Error creating purchase: ${errorMsg}`);
+      throw new Error(errorMsg);
     }
+  }
+
+  /**
+   * Load user data to purchase
+   * @param userId - User id
+   * @returns {{ICustomerPurchase}} - User data
+   */
+  private async loadUserData(userId: string): Promise<ICustomerPurchase> {
+    const user = await this.userService.findOne(userId);
+    if (!user) {
+      this.purchaseException('User not found');
+    }
+    const completeName = `${user.firstName} ${user.secondName} ${user.lastName} ${user.familyName}`;
+    const capitalizateName = capitalizeText(completeName);
+    return {
+      userId: user['_id'],
+      userName: capitalizateName,
+      email: user.email,
+      phone: user.phone,
+    };
+  }
+
+  /**
+   * Validate stock product and reduce it
+   * @param {{PurchaseItem[]}} products - Products to buy
+   * @returns {{PurchaseItem[]}} - Products list with total price
+   */
+  private async updateProductStock(
+    products: ICartList[]
+  ): Promise<IProductPurchase[]> {
+    const productsToBuy: IProductPurchase[] = [];
+    for (const product of products) {
+      const id = product.product['_id'];
+      const amount = product.quantity;
+      //BUSCAR EL PRODUCTO
+      const currentProduct = await this.productService.findOne(id);
+      if (
+        !currentProduct ||
+        !currentProduct.active ||
+        currentProduct.quantity < product.quantity
+      ) {
+        this.logger.log(`Product ${id} is not available`);
+        continue;
+      }
+      this.logger.log(`Product ${currentProduct.name} is available`);
+      productsToBuy.push({
+        product: id,
+        name: currentProduct.name,
+        quantity: amount,
+        category: currentProduct.category,
+        price: currentProduct.price,
+        tax: currentProduct.tax,
+      });
+      //REDUCE PRODUCT STOCK
+      await this.productService.changeAmount(id, -amount);
+    }
+    return productsToBuy;
+  }
+
+  /**
+   * Calculate total price of products
+   * @param {{PurchaseItem[]}} products - Products to buy
+   * @returns {{IPrices}} - Total prices
+   */
+  private async calculateTotalPrice(
+    products: IProductPurchase[]
+  ): Promise<IPrices> {
+    const result = products.reduce(
+      (acc, curr) => {
+        const totalPrice = curr.price * curr.quantity;
+        const totalTax = curr.tax * curr.quantity;
+        const subtotal = totalPrice - totalTax;
+        return {
+          subtotal: acc.subtotal + subtotal,
+          tax: acc.tax + totalTax,
+          total: acc.total + totalPrice,
+        };
+      },
+      {
+        tax: 0,
+        subtotal: 0,
+        total: 0,
+      }
+    );
+    this.logger.log(`Subtotal: $ ${result.subtotal}`);
+    this.logger.log(`Total Tax: $ ${result.tax}`);
+    this.logger.log(`Total Cost: $ ${result.total}`);
+    return result;
+  }
+
+  /**
+   * Load shipping data to purchase
+   * @param createPurchaseDto - Purchase data
+   * @param totalCost - Total cost of products
+   * @returns {{IShippingPurchase}} - Shipping data
+   */
+  private loadShippingData(
+    createPurchaseDto: CreatePurchaseDto,
+    totalCost: IPrices
+  ): IShippingPurchase {
+    //CALCULATE SHIPPING COST
+    const shippingCost = this.calculateShippingCost(
+      totalCost.total,
+      createPurchaseDto.shippingMethod
+    );
+    return {
+      shippingMethod: createPurchaseDto.shippingMethod,
+      address: createPurchaseDto.address,
+      city: createPurchaseDto.city,
+      country: createPurchaseDto.country,
+      shippingCost: shippingCost,
+    };
   }
 
   /**
@@ -211,13 +237,93 @@ export class PurchaseService {
    * @param category - Shipping category
    * @returns {{number}}
    */
-  calculateShippingCost(price: number, category: ShippingMethod) {
+  private calculateShippingCost(
+    price: number,
+    category: ShippingMethod
+  ): number {
     const shippingRate =
       shippingRates[category] || shippingRates[ShippingMethod.OTHER];
     const shippingAmount = price * shippingRate;
     const roundedShippingAmount = parseFloat(shippingAmount.toFixed(2));
+    this.logger.log(`Shipping Cost: $ ${roundedShippingAmount}`);
     return roundedShippingAmount;
   }
+
+  /**
+   * Load invoice data to purchase
+   * @param createPurchaseDto - Purchase data
+   * @param productsCost - Total cost of products
+   * @returns {{IInvoicePurchase}} - Invoice data
+   */
+  private loadInvoiceData(
+    createPurchaseDto: CreatePurchaseDto,
+    productsCost: IPrices,
+    shippingCost: number
+  ): IInvoicePurchase {
+    //TOTAL - PRODUCTS (TAX + SUBTOTAL) + SHIPPING COST
+    const totalCost = shippingCost + productsCost.total;
+    let totalDebt = 0;
+    let shares = 0;
+    let currentShare = 0;
+    if (createPurchaseDto.financed) {
+      totalDebt = totalCost - createPurchaseDto.initialPayment;
+      //VALIDATE IF SHARES IS GREATER THAN 1
+      if (
+        createPurchaseDto.share < 2 &&
+        validInstallments.includes(createPurchaseDto.share)
+      ) {
+        this.purchaseException('Shares must be greater than 1');
+      }
+      shares = createPurchaseDto.share;
+      currentShare = 1;
+    }
+    return {
+      paymentMethod: createPurchaseDto.paymentMethod,
+      paid: !createPurchaseDto.financed,
+      financed: createPurchaseDto.financed,
+      shares: shares,
+      currentShare: currentShare,
+      subtotal: productsCost.subtotal,
+      tax: productsCost.tax,
+      otherCosts: 0,
+      total: totalCost,
+      debt: totalDebt,
+      paidAt: new Date(),
+    };
+  }
+
+  // async calculateFinancedPayment(
+  //   installments: number,
+  //   initPay: number,
+  //   totalProuctPrice: number,
+  //   totalCost: number
+  // ): Promise<IInstallment> {
+  //   //VALIDATE INITIAL PAYMENT IS LESS THAN TOTAL PRODUCTS PRICE
+  //   if (initPay >= totalProuctPrice) {
+  //     this.purchaseException('Initial payment must be less than total payment');
+  //   }
+  //   //VALIDATE INSTALLMENTS IS ON THE LIST
+  //   const isValid = validInstallments.includes(installments);
+  //   if (!isValid || installments < 2) {
+  //     this.purchaseException('Invalid installments');
+  //   }
+
+  //   this.logger.log(`Total Installments: $ ${installments}`);
+  //   this.logger.log(`Initial Payment: $ ${initPay}`);
+  //   this.logger.log(`Total Product Price: $ ${totalProuctPrice}`);
+  //   this.logger.log(`Total Cost: $ ${totalCost}`);
+
+  //   // const totalDebt = totalCost - initPay;
+  //   return {
+  //     amount: 0,
+  //     dueAt: new Date(),
+  //     paymentAt: new Date(),
+  //     installment: 0,
+  //     overdue: false,
+  //     payment: false,
+  //     paymentMethod: '',
+  //   };
+  // }
 
   /**
    * Return all active purchase
@@ -284,7 +390,7 @@ export class PurchaseService {
           'customer._id': 0,
           'customer.userId': 0,
           'customer.phone': 0,
-          'payment._id': 0,
+          'invoice._id': 0,
           'shipping._id': 0,
           createdAt: 0,
           updatedAt: 0,
@@ -306,7 +412,7 @@ export class PurchaseService {
   async payShare(id: string, share: number) {
     const purchase = this.purchaseModel.findByIdAndUpdate(
       { _id: id },
-      { $inc: { 'payment.shares.$[element].paid': share } }
+      { $inc: { 'invoice.shares.$[element].paid': share } }
     );
     if (!purchase) {
       throw new NotFoundException({
@@ -358,7 +464,6 @@ export class PurchaseService {
     const purchaseData = await this.findOne(id);
     //GENERATE PDF
     const data = await invoicePdf(purchaseData);
-    // console.log(data);
     return {
       data,
       fileName,
@@ -387,5 +492,14 @@ export class PurchaseService {
       });
     }
     return true;
+  }
+
+  private purchaseException(msg: string): void {
+    this.logger.error(msg);
+    throw new BadRequestException({
+      message: msg,
+      error: true,
+      status: 400,
+    });
   }
 }

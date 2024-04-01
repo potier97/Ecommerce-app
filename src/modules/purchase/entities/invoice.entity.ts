@@ -2,10 +2,10 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { PaymentMethod } from 'shared/interfaces/paymentMethod.enum';
 
-export type PaymentInfoDocument = HydratedDocument<PaymentInfo>;
+export type InvoiceInfoDocument = HydratedDocument<InvoiceInfo>;
 
 @Schema()
-export class PaymentInfo {
+export class InvoiceInfo {
   @Prop({
     required: true,
     enum: Object.values(PaymentMethod),
@@ -56,6 +56,12 @@ export class PaymentInfo {
     required: true,
     type: Number,
   })
+  public otherCosts: number;
+
+  @Prop({
+    required: true,
+    type: Number,
+  })
   public total: number;
 
   @Prop({
@@ -71,4 +77,4 @@ export class PaymentInfo {
   public paidAt: Date;
 }
 
-export const PaymentInfoSchema = SchemaFactory.createForClass(PaymentInfo);
+export const InvoiceInfoSchema = SchemaFactory.createForClass(InvoiceInfo);
