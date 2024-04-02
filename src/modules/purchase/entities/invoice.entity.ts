@@ -72,6 +72,12 @@ export class InvoiceInfo {
 
   @Prop({
     required: true,
+    type: Number,
+  })
+  public interest: number;
+
+  @Prop({
+    required: true,
     type: Date,
   })
   public paidAt: Date;

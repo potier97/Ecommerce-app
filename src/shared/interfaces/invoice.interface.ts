@@ -9,5 +9,6 @@ export interface IInvoice {
   otherCosts: number;
   total: number;
   debt: number;
+  interest: number;
   paidAt: Date;
 }

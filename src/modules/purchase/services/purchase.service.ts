@@ -32,13 +32,17 @@ import { IInvoicePurchase } from 'shared/interfaces/invoicePurchase.interface';
 import { IProductPurchase } from 'shared/interfaces/productPurchase.interface';
 import { IPurchase } from 'shared/interfaces/purchase.interface';
 import { invoicePdf } from 'shared/util/makePdf';
+import { IInvoice } from 'shared/interfaces/invoice.interface';
+import { IPaymentPlan } from 'shared/interfaces/paymentPlant.interface';
+import { IPaymentMonth } from 'shared/interfaces/paymentMonth.interface';
+import { IMonthPaymentPlan } from 'shared/interfaces/monthPaymentPlan.interface';
 
 @Injectable()
 export class PurchaseService {
   private readonly logger = new Logger(PurchaseService.name);
 
-  //INTEREST RATE - 5%
-  private readonly annualInterest: number = 5;
+  //INTEREST RATE - 10%
+  private readonly annualInterest: number = 10;
 
   constructor(
     @InjectModel(Purchase.name) private purchaseModel: Model<Purchase>,
@@ -173,6 +177,10 @@ export class PurchaseService {
       //REDUCE PRODUCT STOCK
       await this.productService.changeAmount(id, -amount);
     }
+    //VALIDATE IF PRODUCTS TO BUY IS EMPTY
+    if (productsToBuy.length === 0) {
+      this.purchaseException('No products available');
+    }
     return productsToBuy;
   }
 
@@ -260,68 +268,40 @@ export class PurchaseService {
     productsCost: IPrices,
     shippingCost: number
   ): IInvoicePurchase {
-    //TOTAL - PRODUCTS (TAX + SUBTOTAL) + SHIPPING COST
     const totalCost = shippingCost + productsCost.total;
     let totalDebt = 0;
-    let shares = 0;
+    let share = 0;
     let currentShare = 0;
+    let interest = 0;
     if (createPurchaseDto.financed) {
-      totalDebt = totalCost - createPurchaseDto.initialPayment;
+      totalDebt = totalCost;
+      interest = this.annualInterest;
+      if (createPurchaseDto.initialPayment > 0) {
+        totalDebt -= createPurchaseDto.initialPayment;
+      }
       //VALIDATE IF SHARES IS GREATER THAN 1
       const isIncluded = validInstallments.includes(createPurchaseDto.share);
       if (createPurchaseDto.share < 2 || !isIncluded) {
         this.purchaseException('The actions must be one of those allowed');
       }
-      shares = createPurchaseDto.share;
+      share = createPurchaseDto.share;
       currentShare = 1;
     }
     return {
       paymentMethod: createPurchaseDto.paymentMethod,
       paid: !createPurchaseDto.financed,
       financed: createPurchaseDto.financed,
-      shares: shares,
+      share: share,
       currentShare: currentShare,
       subtotal: productsCost.subtotal,
       tax: productsCost.tax,
       otherCosts: 0,
       total: totalCost,
       debt: totalDebt,
+      interest: interest,
       paidAt: new Date(),
     };
   }
-
-  // async calculateFinancedPayment(
-  //   installments: number,
-  //   initPay: number,
-  //   totalProuctPrice: number,
-  //   totalCost: number
-  // ): Promise<IInstallment> {
-  //   //VALIDATE INITIAL PAYMENT IS LESS THAN TOTAL PRODUCTS PRICE
-  //   if (initPay >= totalProuctPrice) {
-  //     this.purchaseException('Initial payment must be less than total payment');
-  //   }
-  //   //VALIDATE INSTALLMENTS IS ON THE LIST
-  //   const isValid = validInstallments.includes(installments);
-  //   if (!isValid || installments < 2) {
-  //     this.purchaseException('Invalid installments');
-  //   }
-
-  //   this.logger.log(`Total Installments: $ ${installments}`);
-  //   this.logger.log(`Initial Payment: $ ${initPay}`);
-  //   this.logger.log(`Total Product Price: $ ${totalProuctPrice}`);
-  //   this.logger.log(`Total Cost: $ ${totalCost}`);
-
-  //   // const totalDebt = totalCost - initPay;
-  //   return {
-  //     amount: 0,
-  //     dueAt: new Date(),
-  //     paymentAt: new Date(),
-  //     installment: 0,
-  //     overdue: false,
-  //     payment: false,
-  //     paymentMethod: '',
-  //   };
-  // }
 
   /**
    * Return all active purchase
@@ -422,22 +402,117 @@ export class PurchaseService {
     return purchase;
   }
 
-  calculateInteres(totalChare: number) {
-    const interes = this.annualInterest / totalChare;
-    return parseFloat(interes.toFixed(3));
+  /**
+   * Calculate interest rate
+   * @param annualInterest - Annual interest rate
+   * @returns {{number}} -  Monthly interest rate
+   */
+  private calculateMonthlyInterestRate(annualInterest: number): number {
+    const monthlyInterestRate = annualInterest / 100 / 12;
+    return monthlyInterestRate;
   }
 
-  calculateShare(total: number, shares: number) {
-    return parseFloat((total / shares).toFixed(2));
+  /**
+   * fórmula de amortización de préstamos "cuota fija"
+   * @param total - Total amount on invoice purchase
+   * @param shares - total of installments
+   * @returns {{IPaymentMonth}} - Monthly payment
+   */
+  private calculatePaymentMonth(
+    total: number,
+    shares: number,
+    interest: number
+  ): IPaymentMonth {
+    //CALCULATE MONTHLY INTEREST RATE
+    const interestRate = this.calculateMonthlyInterestRate(interest);
+    //FORMULA 1
+    // const pm =
+    //   (total * (interestRate * (1 + interestRate) ** shares)) /
+    //   ((1 + interestRate) ** shares - 1);
+    //FORMULA 2
+    const denominator = 1 - Math.pow(1 + interestRate, -shares);
+    const pm2 = (interestRate * total) / denominator;
+    return {
+      //APROXIMATE TO 3 DECIMALS
+      monthlyPayment: parseFloat(pm2.toFixed(4)),
+      interestMonth: interestRate,
+    };
   }
 
-  calculateMonthlyPayment(total: number, shares: number) {
-    // const share = this.calculateShare(total, shares);
-    const interes = this.calculateInteres(total);
-    const monthlyPayment = parseFloat(
-      ((total * interes) / (1 - Math.pow(1 + interes, -shares))).toFixed(2)
+  /**
+   * Calculate payment plan
+   * @param {{IInvoice}} invoice - Invoice data
+   * @returns {{IMonthPaymentPlan}} - Payment plan
+   */
+  private calculatePaymentPlan(invoice: IInvoice): IMonthPaymentPlan {
+    //TOTAL TO PAY
+    let debt = invoice.debt;
+    this.logger.log(`Total Debt: $ ${debt}`);
+    //TOTAL INSTALLMENTS OF PURCHASE
+    const totalShares = invoice.share;
+    this.logger.log(`Total Shares: ${totalShares}`);
+    //CALCULATE MONTHLY PAYMENT
+    const monthlyPayment = this.calculatePaymentMonth(
+      debt,
+      totalShares,
+      invoice.interest
     );
-    return monthlyPayment;
+    this.logger.log(
+      `Monthly Payment: $ ${monthlyPayment.monthlyPayment.toFixed(3)}`
+    );
+    this.logger.log(
+      `Monthly Interest: $ ${monthlyPayment.interestMonth.toFixed(3)}`
+    );
+    //ARRAY OF INSTALLMENTS
+    const shares = Array.from({ length: totalShares }, (_, i) => i + 1);
+    //PLAN FOR EVERY MONTH
+    const plan: IPaymentPlan[] = [];
+    let totalInterest = 0;
+    shares.forEach(share => {
+      //CUOTA MENSUAL
+      const interest = debt * monthlyPayment.interestMonth;
+      const totalPaid = monthlyPayment.monthlyPayment - interest;
+      debt -= totalPaid;
+      totalInterest += interest;
+      //CUOTA A PAGAR
+      plan.push({
+        installment: share,
+        monthlyPayment: parseFloat(monthlyPayment.monthlyPayment.toFixed(2)),
+        interest: parseFloat(interest.toFixed(2)),
+        principal: parseFloat((Math.round(totalPaid * 1000) / 1000).toFixed(2)),
+        debt: parseFloat((Math.round(debt * 1000) / 1000).toFixed(2)),
+      });
+    });
+    const totalPaymentPlan = totalShares * monthlyPayment.monthlyPayment;
+    return {
+      plan: plan,
+      totalDebt: invoice.debt,
+      totalInterest: parseFloat(totalInterest.toFixed(2)),
+      totalPaymentPlan: parseFloat(totalPaymentPlan.toFixed(2)),
+    };
+  }
+
+  /**
+   * Genrate payment plan by purchase id
+   * @param {{string}} id - Purchase id
+   * @returns {{void}}
+   */
+  async downloadPaymentPlan(id: string) {
+    const purchase = await this.purchaseModel.findOne({
+      _id: id,
+      $and: [{ 'invoice.financed': true, active: true }],
+    });
+    if (!purchase) {
+      throw new NotFoundException({
+        message: 'Purchase not found',
+        error: true,
+        status: 404,
+      });
+    }
+    const data = await this.findOne(id);
+    const monthlyPayment = this.calculatePaymentPlan(data.invoice);
+    console.table(monthlyPayment.plan);
+    return 'result';
   }
 
   /**
@@ -447,7 +522,7 @@ export class PurchaseService {
    */
   async downloadInvoice(id: string): Promise<InvoicePdf> {
     //VALIDATE IF PURCHASE EXISTS
-    const purchase = this.purchaseModel.exists({ _id: id });
+    const purchase = await this.purchaseModel.exists({ _id: id, active: true });
     if (!purchase) {
       throw new NotFoundException({
         message: 'Purchase not found',

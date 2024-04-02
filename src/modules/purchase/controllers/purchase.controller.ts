@@ -121,10 +121,35 @@ export class PurchaseController {
     return this.purchaseService.payShare(id, share);
   }
 
-  //TODO: PENDIENTE AL IMPLEMENTAR EL SERVICIO DE PAGO A CUOTAS
-  @Post('download-share/:id/share/:share')
-  downloadShace(@Param('id', MongoIdPipe) id: string) {
-    return this.purchaseService.downloadInvoice(id);
+  @Get('download-payment-plan/:id')
+  async downloadPaymentPlan(@Param('id', MongoIdPipe) id: string) {
+    try {
+      // const invoicePdfBuffer = await this.purchaseService.downloadInvoice(id);
+      await this.purchaseService.downloadPaymentPlan(id);
+      return {
+        content: 'invoicePdfBuffer',
+        message: 'Invoice downloaded',
+        status: true,
+      };
+      // res.set({
+      //   'Content-Type': 'application/pdf',
+      //   'Content-Disposition': `attachment; filename=${invoicePdfBuffer.fileName}`,
+      //   'content-length': invoicePdfBuffer.data.length.toString(),
+      // });
+      // res.send(invoicePdfBuffer.data).status(HttpStatus.OK);
+    } catch (error) {
+      this.logger.error(error);
+      throw new HttpException(
+        {
+          status: HttpStatus.BAD_REQUEST,
+          message: error.message
+            ? error.message
+            : 'Error downloading payment plan',
+          content: false,
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
   }
 
   @Get('invoice-pdf/:id')
