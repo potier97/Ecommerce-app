@@ -13,3 +13,7 @@ export const URL_BRAND = 'https://nipoanz.com/';
 export const BRAND_PLACE = 'Bogotá, CO';
 export const FOOTER_TEXT =
   'E-coomerce NPA - Bogotá, CO - 2021 - All rights reserved';
+//PLAN INSTALLMENT PDF
+export const PLAN_TOTAL_DEBT = 'Total Debt';
+export const PLAN_TOTAL_INTEREST = 'Total Interest';
+export const PLAN_TOTAL_PAYMENT = 'Total Payment';

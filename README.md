@@ -131,7 +131,7 @@ Devuelve el reporte de las pruebas E2E de solo el cubrimiento de los controlador
  - ENVIRONMENT_NAME -> Nombre del entorno que se desea construir (test, dev, prod)
 
 ```bash
-$  docker build --build-arg ENVIRONMENT_NAME=test -t movie-app-test .
+$  docker build --build-arg ENVIRONMENT_NAME=test -t mongo-app .
 ```
 
 ## Correr Imagen Docker
@@ -139,9 +139,11 @@ $  docker build --build-arg ENVIRONMENT_NAME=test -t movie-app-test .
 Correr docker, se deben pasar las variables de entorno del archivo .env dado que se ignoran en el archivo Dockerfile.
 
 ```bash
-$ docker run -e PM2_PUBLIC_KEY=rqzekuqwl9k69gp -e PM2_SECRET_KEY=xxx -e MONGODB_URI=xxx -e MONGO_INITDB_ROOT_USERNAME=xxx -e MONGO_INITDB_ROOT_PASSWORD=xxx -e MONGO_DATABASE=xxx -e MONGO_DATABASE_HOST=xxx -e MONGO_DATABASE_PORT=xxx  -p 3000:3000  --name mongonest-app movie-app-test
+$ docker run -e PM2_PUBLIC_KEY=xxx -e PM2_SECRET_KEY=xxx -e MONGODB_URI=xxx -e MONGO_INITDB_ROOT_USERNAME=xxx -e MONGO_INITDB_ROOT_PASSWORD=xxx -e MONGO_DATABASE=xxx -e MONGO_DATABASE_HOST=xxx -e MONGO_DATABASE_PORT=xxx  -e NODE_ENV=development -e API_KEY=xxx -e JWT_SECRET=xxx -e JWT_EXPIRATION_TIME=xxx -e JWT_REFRESH_SECRET=xxx -e JWT_REFRESH_EXPIRATION_TIME=xxx -e JWT_REFRESH_KEY=xxx -p 3000:3000  --name mongonest-app mongo-app
 ```
  Para correr en segundo plano, se debe añadir el flag `-d` al comando anterior.
+
+ > Recuerde que si ya existe un contenedor con el mismo nombre, debe eliminarlo antes de correr el comando anterior, o sino puede campiar el nombre del contenedor a lanzar
 
 ## PM2
 
@@ -202,8 +204,23 @@ Ejemplo de recibo de compra en formato PDF:
 <div align="center">
   <img src="./public/recibo.png" alt="pdf" border="0">
 </div>
+<br>
+<br>
 
  > Descargue el ejemplo de recibo de compra en formato PDF [aquí](./public/2024230-6608e2c837a8606b92222f45.pdf).
+
+ ## PDF - Plan de Pagos
+
+Ejemplo de plan de pagos de una compra a 36 cuotas con interes del 10% EA en formato PDF:
+
+<div align="center">
+  <img src="./public/plan.png" alt="pdf" border="0">
+</div>
+<br>
+<br>
+
+ > Descargue el ejemplo del plan de pago a cuotas en el siguiente link [aquí](./public/payment-plan-660c480862882b1c4905dc98.pdf).
+
 
 ## License
 

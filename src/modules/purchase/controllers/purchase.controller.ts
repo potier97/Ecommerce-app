@@ -122,21 +122,19 @@ export class PurchaseController {
   }
 
   @Get('download-payment-plan/:id')
-  async downloadPaymentPlan(@Param('id', MongoIdPipe) id: string) {
+  async downloadPaymentPlan(
+    @Res() res: Response,
+    @Param('id', MongoIdPipe) id: string
+  ) {
     try {
-      // const invoicePdfBuffer = await this.purchaseService.downloadInvoice(id);
-      await this.purchaseService.downloadPaymentPlan(id);
-      return {
-        content: 'invoicePdfBuffer',
-        message: 'Invoice downloaded',
-        status: true,
-      };
-      // res.set({
-      //   'Content-Type': 'application/pdf',
-      //   'Content-Disposition': `attachment; filename=${invoicePdfBuffer.fileName}`,
-      //   'content-length': invoicePdfBuffer.data.length.toString(),
-      // });
-      // res.send(invoicePdfBuffer.data).status(HttpStatus.OK);
+      const installmentPdfBuffer =
+        await this.purchaseService.downloadPaymentPlan(id);
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename=${installmentPdfBuffer.fileName}`,
+        'content-length': installmentPdfBuffer.data.length.toString(),
+      });
+      res.send(installmentPdfBuffer.data).status(HttpStatus.OK);
     } catch (error) {
       this.logger.error(error);
       throw new HttpException(

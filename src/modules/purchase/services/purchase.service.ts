@@ -36,6 +36,9 @@ import { capitalizeText } from 'shared/util/capitalizateText';
 import { shippingRates } from 'shared/util/shippingRates';
 import { validInstallments } from 'shared/util/installments';
 import { invoicePdf } from 'shared/util/invoicePdf';
+import { installmentPlanPdf } from 'shared/util/planInstallmentPdf';
+import { addMonths, format } from 'date-fns';
+import { ICustomerInstallmentPlan } from 'shared/interfaces/installmentPlan.interface';
 
 @Injectable()
 export class PurchaseService {
@@ -468,14 +471,18 @@ export class PurchaseService {
     //PLAN FOR EVERY MONTH
     const plan: IPaymentPlan[] = [];
     let totalInterest = 0;
+    let date = '';
     shares.forEach(share => {
       //CUOTA MENSUAL
       const interest = debt * monthlyPayment.interestMonth;
       const totalPaid = monthlyPayment.monthlyPayment - interest;
       debt -= totalPaid;
       totalInterest += interest;
+      date = format(addMonths(invoice.paidAt, share), 'dd/MM/yy');
       //CUOTA A PAGAR
       plan.push({
+        //SE AÑADE UN MES EN CADA ITERACION // DEBE SER EL MISMO DIA DE CADA MES
+        date: date,
         installment: share,
         monthlyPayment: parseFloat(monthlyPayment.monthlyPayment.toFixed(2)),
         interest: parseFloat(interest.toFixed(2)),
@@ -497,7 +504,7 @@ export class PurchaseService {
    * @param {{string}} id - Purchase id
    * @returns {{void}}
    */
-  async downloadPaymentPlan(id: string) {
+  async downloadPaymentPlan(id: string): Promise<IpdfFileData> {
     const purchase = await this.purchaseModel.findOne({
       _id: id,
       $and: [{ 'invoice.financed': true, active: true }],
@@ -509,11 +516,29 @@ export class PurchaseService {
         status: 404,
       });
     }
-    const data = await this.findOne(id);
-    const monthlyPayment = this.calculatePaymentPlan(data.invoice);
-    console.table(monthlyPayment.plan);
+    const currentPurchase = await this.findOne(id);
+    const resume = this.calculatePaymentPlan(currentPurchase.invoice);
+    // console.table(resume.plan);
+    const customer: ICustomerInstallmentPlan = {
+      userName: currentPurchase.customer.userName,
+      email: currentPurchase.customer.email,
+      currentInstallment: currentPurchase.invoice.currentShare,
+      totalInstallments: currentPurchase.invoice.share,
+      paidAt: currentPurchase.invoice.paidAt,
+      address: currentPurchase.shipping.address,
+      shippingMethod: currentPurchase.shipping.shippingMethod,
+    };
     //GENERATE PDF
-    return 'result';
+    const data = await installmentPlanPdf({
+      id: id,
+      invoice: currentPurchase.invoice,
+      resume,
+      customer,
+    });
+    return {
+      data,
+      fileName: `payment-plan-${id}.pdf`,
+    };
   }
 
   /**
