@@ -1,13 +1,10 @@
 import { Buffer } from 'buffer';
-import { format } from 'date-fns';
 import * as path from 'path';
 import PDFDocument from 'pdfkit';
 //INTERFACES
-import { IInvoiceData } from 'shared/interfaces/invoiceData.interface';
 import {
   BRAND_NAME,
   BRAND_PLACE,
-  DOCUMENT_MARGIN,
   DOCUMENT_SIZE,
   FOOTER_TEXT,
   IMAGE_LOGO_PATH,
@@ -15,26 +12,27 @@ import {
 } from 'shared/constants/invoicePdf';
 import { IPdfData } from 'shared/interfaces/pdfData';
 import { IPdfTable } from 'shared/interfaces/pdfTable.interface';
+import { IDescriptionPdf } from 'shared/interfaces/descriptionPdf.interface';
 
 //INSPIRATED BY https://pspdfkit.com/blog/2019/generate-pdf-invoices-pdfkit-nodejs/
 export const generatePdf = async (pdfData: IPdfData<any>): Promise<Buffer> => {
   //GENERATE A DOC OBJECT
   let doc = new PDFDocument({
     size: DOCUMENT_SIZE,
-    margin: DOCUMENT_MARGIN,
+    margin: pdfData.xInit,
     bufferPages: true,
   });
   //LOGO PATH
   const imagePath = path.join(__dirname, IMAGE_LOGO_PATH);
+  //UTIL WIDTH SPACE
+  const width = doc['page'].width - pdfData.xInit * 2;
   //GENERATE HEADER AND FOOTER
-  doc = generateHeaderInvoice(doc, imagePath, pdfData.id);
+  doc = generateHeaderInvoice(doc, pdfData.xInit, imagePath, pdfData.id);
   doc = generateFooterInvoce(doc, imagePath);
   //GENERATE CUSTOMER INFORMATION
-  doc = generateCustomerInformation(doc, pdfData.invoice);
-  //UTIL WIDTH SPACE
-  const width = doc['page'].width - 100;
+  doc = generateInfoDescription(doc, width, pdfData.description, pdfData.xInit);
   // GENERATE TABLE
-  doc = generateTableInvoice(doc, width, pdfData.table);
+  doc = generateTableInvoice(doc, width, pdfData.table, pdfData.xInit);
   //RETURN BUFFER
   return new Promise<Buffer>((resolve, reject) => {
     const buffers: Uint8Array[] = [];
@@ -53,11 +51,12 @@ export const generatePdf = async (pdfData: IPdfData<any>): Promise<Buffer> => {
 
 const generateHeaderInvoice = (
   data: any,
+  xInit: number,
   imagePath: string,
   invoice: string
 ) => {
   return data
-    .image(imagePath, 50, 45, { width: 50 })
+    .image(imagePath, xInit, 45, { width: 50 })
     .fillColor('#33658a')
     .fontSize(16)
     .text(`N° ${invoice.toString()}`, 110, 65) // (content, x, y)
@@ -109,74 +108,62 @@ const generateHr = (
     .stroke();
 };
 
-const generateCustomerInformation = (data: any, invoice: IInvoiceData) => {
-  data = data
-    .fillColor('#444444')
-    .fontSize(16)
-    .font('Helvetica-Bold')
-    .fillColor('#33658a')
-    .text('Customer Info', 50, 130);
-  data = generateHr(data, 155);
-  data = data
-    .fontSize(12)
-    .font('Helvetica-Bold')
-    .fillColor('#33658a')
-    .text(`Name:`, 50, 170)
-    .fontSize(12)
-    .font('Helvetica')
-    .fillColor('#000000')
-    .text(`${invoice.customer.userName}`, 90, 170)
-    .fontSize(12)
-    .font('Helvetica-Bold')
-    .fillColor('#33658a')
-    .text(`Mail:`, 50, 190)
-    .fontSize(12)
-    .font('Helvetica')
-    .fillColor('#000000')
-    .text(`${invoice.customer.email}`, 85, 190)
-    .fontSize(12)
-    .font('Helvetica-Bold')
-    .fillColor('#33658a')
-    .text(`Date:`, 50, 210)
-    .fontSize(12)
-    .font('Helvetica')
-    .fillColor('#000000')
-    .text(`${format(invoice.invoice.paidAt, 'PPpp')}`, 85, 210)
-    .fontSize(12)
-    .font('Helvetica-Bold')
-    .fillColor('#33658a')
-    .text(`Fees:`, 50, 230)
-    .fontSize(12)
-    .font('Helvetica')
-    .fillColor('#000000')
-    .text(`${invoice.invoice.share}`, 85, 230)
+// ======================================================================
+// ======================================================================
+// ========================= CUSTOMER INFO  =============================
+// ======================================================================
+// ======================================================================
 
-    .fontSize(12)
-    .font('Helvetica-Bold')
+const generateInfoDescription = (
+  docContext: any,
+  width: number,
+  data: IDescriptionPdf,
+  xInit: number
+) => {
+  const descriptionPosition = data.descriptionPosition;
+  let position = descriptionPosition;
+  docContext = docContext
+    .fillColor('#444444')
+    .fontSize(data.titleFontSize)
+    .font(data.titleFont)
     .fillColor('#33658a')
-    .text('Address:', 300, 170)
-    .fontSize(12)
-    .font('Helvetica')
-    .fillColor('#000000')
-    .text(invoice.shipping.address, 357, 170)
-    .fontSize(12)
-    .font('Helvetica-Bold')
-    .fillColor('#33658a')
-    .text('Shipment:', 300, 190)
-    .fontSize(12)
-    .font('Helvetica')
-    .fillColor('#000000')
-    .text(invoice.shipping.shippingMethod, 363, 190)
-    .fontSize(12)
-    .font('Helvetica-Bold')
-    .fillColor('#33658a')
-    .text(`Destination:`, 300, 210)
-    .fontSize(12)
-    .font('Helvetica')
-    .fillColor('#000000')
-    .text(`${invoice.shipping.city} - ${invoice.shipping.country}`, 372, 210)
-    .moveDown();
-  return generateHr(data, 255);
+    .text(data.title, xInit, descriptionPosition);
+  position += data.yOffset;
+  docContext = generateHr(docContext, position);
+
+  const columns = data.columns;
+  const columnWidth = width / columns;
+  const dataLength = data.content.length;
+  const dataRow = [];
+  //ORGANIZAR LA INFORMACION EN FILAS DE ACUERDO AL NUMERO DE COLUMNAS [NUMERO DE ROW][NUMERO DE COLUMNAS]
+  for (let i = 0; i < dataLength; i += columns) {
+    const row = [];
+    for (let j = 0; j < columns; j++) {
+      const item = data.content[i + j];
+      if (!item) break;
+      row.push(data.content[i + j]);
+    }
+    dataRow.push(row);
+  }
+
+  position += data.yOffset * 0.5;
+
+  dataRow.forEach(row => {
+    row.forEach((item, index) => {
+      const xLabel = xInit + columnWidth * index + 1;
+      docContext = docContext
+        .fontSize(data.contentFontSize)
+        .font('Helvetica-Bold')
+        .fillColor('#33658a')
+        .text(item.label, xLabel, position)
+        .fontSize(data.contentFontSize)
+        .font('Helvetica')
+        .fillColor('#000000')
+        .text(item.value, xLabel + item.xValue, position);
+    });
+    position += data.yOffset;
+  });
+  return generateHr(docContext, position);
 };
 
 const generateRow = (
@@ -202,23 +189,20 @@ const generateRow = (
 const generateTableInvoice = (
   docContext: any,
   width: number,
-  content: IPdfTable<any>
+  content: IPdfTable<any>,
+  xInit: number
 ) => {
   docContext = docContext
     .fontSize(content.titleFontSize)
     .font('Helvetica-Bold')
     .fillColor('#33658a')
-    .text(content.title, content.xInit, content.tablePosition)
+    .text(content.title, xInit, content.tablePosition)
     .fontSize(content.subtitleFontSize)
     .font('Helvetica-Bold')
     .fillColor('#000000')
-    .text(
-      content.subtitle,
-      content.xInit,
-      content.tablePosition + content.yOffset
-    );
+    .text(content.subtitle, xInit, content.tablePosition + content.yOffset);
   const initWidth = content.initWidth.map((initWidth, index) =>
-    index === 0 ? content.xInit : content.xInit + width * initWidth
+    index === 0 ? xInit : xInit + width * initWidth
   );
   const spacing = content.spacing.map(spacing => spacing * width);
   const yHeaderLevel = content.tablePosition + content.yOffset * 2.5;

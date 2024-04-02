@@ -9,6 +9,8 @@ import {
 } from 'shared/constants/invoicePdf';
 import { IPdfTable } from 'shared/interfaces/pdfTable.interface';
 import { IPdfResumeTable } from 'shared/interfaces/pdfResumeTable';
+import { IDescriptionPdf } from 'shared/interfaces/descriptionPdf.interface';
+import { format } from 'date-fns';
 
 interface IProductTable {
   name: string;
@@ -60,7 +62,6 @@ export const invoicePdf = async (
   });
 
   const pdfData: IPdfTable<IProductTable> = {
-    xInit: 20,
     yOffset: 20,
     tablePosition: 290,
     title: 'Purchased Items',
@@ -80,10 +81,60 @@ export const invoicePdf = async (
     content: products,
   };
 
+  const xInit = 50;
+
+  const description: IDescriptionPdf = {
+    title: 'Customer Info',
+    titleFontSize: 16,
+    titleFont: 'Helvetica-Bold',
+    descriptionPosition: 130,
+    yOffset: 25,
+    contentFontSize: 12,
+    columns: 2,
+    content: [
+      {
+        label: 'Name',
+        value: invoiceData.customer.userName,
+        xValue: 35,
+      },
+      {
+        label: 'Address',
+        value: invoiceData.shipping.address,
+        xValue: 52,
+      },
+      {
+        label: 'Mail',
+        value: invoiceData.customer.email,
+        xValue: 30,
+      },
+      {
+        label: 'Shipment',
+        value: invoiceData.shipping.shippingMethod,
+        xValue: 60,
+      },
+      {
+        label: 'Date',
+        value: `${format(invoiceData.invoice.paidAt, 'PPpp')}`,
+        xValue: 30,
+      },
+      {
+        label: 'Destination',
+        value: `${invoiceData.shipping.city} - ${invoiceData.shipping.country}`,
+        xValue: 70,
+      },
+      {
+        label: 'Fees',
+        value: invoiceData.invoice.share.toString(),
+        xValue: 30,
+      },
+    ],
+  };
+
   const data: IPdfData<IProductTable> = {
     id: invoiceData['_id'].toString(),
+    xInit: xInit,
     table: pdfData,
-    invoice: invoiceData,
+    description: description,
   };
 
   const result = await generatePdf(data);

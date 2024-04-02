@@ -13,7 +13,6 @@ export interface IPdfTable<T> {
   nameRow: string[];
   aling: string[];
   yOffset: number;
-  xInit: number;
   resumeRows: number;
   tablePosition: number;
   content: T[];
