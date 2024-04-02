@@ -1,4 +1,4 @@
-export interface InvoicePdf {
+export interface IpdfFileData {
   data: Buffer;
   fileName: string;
 }

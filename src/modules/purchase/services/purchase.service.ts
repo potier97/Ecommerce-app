@@ -14,28 +14,28 @@ import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { PaginationDto } from 'shared/dtos/pagination.dto';
 //INTERFACES
 import { IPaginateData } from 'shared/interfaces/paginateData.interface';
-//ENTITIES
-import { Purchase } from '../entities/purchase.entity';
-import { ProductService } from 'modules/product/services/product.service';
-import { capitalizeText } from 'shared/util/capitalizateText';
 import { ShippingMethod } from 'shared/interfaces/shippingMethod.enum';
-import { shippingRates } from 'shared/util/shippingRates';
-import { InvoicePdf } from 'shared/interfaces/invoicePdf.interface';
-import { IInvoiceData } from 'shared/interfaces/invoiceData.interface';
-import { IPrices } from 'shared/interfaces/prices.interface';
-import { ICartList } from 'shared/interfaces/cartList.interface';
-// import { IInstallment } from 'shared/interfaces/installment.interface';
-import { validInstallments } from 'shared/util/installments';
 import { ICustomerPurchase } from 'shared/interfaces/customerPurchase';
-import { IShippingPurchase } from 'shared/interfaces/shippingPurchase.interface';
 import { IInvoicePurchase } from 'shared/interfaces/invoicePurchase.interface';
-import { IProductPurchase } from 'shared/interfaces/productPurchase.interface';
+import { IShippingPurchase } from 'shared/interfaces/shippingPurchase.interface';
 import { IPurchase } from 'shared/interfaces/purchase.interface';
-import { invoicePdf } from 'shared/util/makePdf';
+import { IProductPurchase } from 'shared/interfaces/productPurchase.interface';
 import { IInvoice } from 'shared/interfaces/invoice.interface';
 import { IPaymentPlan } from 'shared/interfaces/paymentPlant.interface';
 import { IPaymentMonth } from 'shared/interfaces/paymentMonth.interface';
 import { IMonthPaymentPlan } from 'shared/interfaces/monthPaymentPlan.interface';
+import { IpdfFileData } from 'shared/interfaces/pdfFileData.interface';
+import { IInvoiceData } from 'shared/interfaces/invoiceData.interface';
+import { IPrices } from 'shared/interfaces/prices.interface';
+import { ICartList } from 'shared/interfaces/cartList.interface';
+//ENTITIES
+import { Purchase } from '../entities/purchase.entity';
+import { ProductService } from 'modules/product/services/product.service';
+//UTILS
+import { capitalizeText } from 'shared/util/capitalizateText';
+import { shippingRates } from 'shared/util/shippingRates';
+import { validInstallments } from 'shared/util/installments';
+import { invoicePdf } from 'shared/util/invoicePdf';
 
 @Injectable()
 export class PurchaseService {
@@ -512,15 +512,16 @@ export class PurchaseService {
     const data = await this.findOne(id);
     const monthlyPayment = this.calculatePaymentPlan(data.invoice);
     console.table(monthlyPayment.plan);
+    //GENERATE PDF
     return 'result';
   }
 
   /**
    * Generate invoice pdf by purchase id
    * @param id - pushase id
-   * @returns {{InvoicePdf}} - Invoice pdf
+   * @returns {{IpdfFileData}} - Invoice pdf
    */
-  async downloadInvoice(id: string): Promise<InvoicePdf> {
+  async downloadInvoice(id: string): Promise<IpdfFileData> {
     //VALIDATE IF PURCHASE EXISTS
     const purchase = await this.purchaseModel.exists({ _id: id, active: true });
     if (!purchase) {

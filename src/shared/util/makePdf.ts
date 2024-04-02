@@ -4,7 +4,6 @@ import * as path from 'path';
 import PDFDocument from 'pdfkit';
 //INTERFACES
 import { IInvoiceData } from 'shared/interfaces/invoiceData.interface';
-import { IProduct } from 'shared/interfaces/products.interface';
 import {
   BRAND_NAME,
   BRAND_PLACE,
@@ -12,17 +11,13 @@ import {
   DOCUMENT_SIZE,
   FOOTER_TEXT,
   IMAGE_LOGO_PATH,
-  RESUME_INVOICE_ITEMS_SHIPPING,
-  RESUME_INVOICE_ITEMS_SUBTOTAL,
-  RESUME_INVOICE_ITEMS_TAX,
-  RESUME_INVOICE_ITEMS_TOTAL,
   URL_BRAND,
 } from 'shared/constants/invoicePdf';
+import { IPdfData } from 'shared/interfaces/pdfData';
+import { IPdfTable } from 'shared/interfaces/pdfTable.interface';
 
 //INSPIRATED BY https://pspdfkit.com/blog/2019/generate-pdf-invoices-pdfkit-nodejs/
-export const invoicePdf = async (
-  invoiceData: IInvoiceData
-): Promise<Buffer> => {
+export const generatePdf = async (pdfData: IPdfData<any>): Promise<Buffer> => {
   //GENERATE A DOC OBJECT
   let doc = new PDFDocument({
     size: DOCUMENT_SIZE,
@@ -31,45 +26,16 @@ export const invoicePdf = async (
   });
   //LOGO PATH
   const imagePath = path.join(__dirname, IMAGE_LOGO_PATH);
-
   //GENERATE HEADER AND FOOTER
-  doc = generateHeaderInvoice(doc, imagePath, invoiceData['_id']);
+  doc = generateHeaderInvoice(doc, imagePath, pdfData.id);
   doc = generateFooterInvoce(doc, imagePath);
   //GENERATE CUSTOMER INFORMATION
-  doc = generateCustomerInformation(doc, invoiceData);
+  doc = generateCustomerInformation(doc, pdfData.invoice);
   //UTIL WIDTH SPACE
   const width = doc['page'].width - 100;
-  //GENERATE INVOICE TABLE
-  const invoiceListData = invoiceData.products;
-  //ADD RESUME DATA PAYMENT
-  invoiceListData.push({
-    name: RESUME_INVOICE_ITEMS_SUBTOTAL,
-    price: invoiceData.invoice.subtotal,
-    quantity: 0,
-    tax: 0,
-  });
-  invoiceListData.push({
-    name: RESUME_INVOICE_ITEMS_TAX,
-    price: invoiceData.invoice.tax,
-    quantity: 0,
-    tax: 0,
-  });
-  invoiceListData.push({
-    name: RESUME_INVOICE_ITEMS_SHIPPING,
-    price: invoiceData.shipping.shippingCost,
-    quantity: 0,
-    tax: 0,
-  });
-  invoiceListData.push({
-    name: RESUME_INVOICE_ITEMS_TOTAL,
-    price: invoiceData.invoice.total,
-    quantity: 0,
-    tax: 0,
-  });
-
-  doc = generateTableInvoice(doc, 290, width, invoiceListData);
-
-  // Finaliza el documento y devuelve el buffer
+  // GENERATE TABLE
+  doc = generateTableInvoice(doc, width, pdfData.table);
+  //RETURN BUFFER
   return new Promise<Buffer>((resolve, reject) => {
     const buffers: Uint8Array[] = [];
     doc.on('data', (chunk: Uint8Array) => buffers.push(chunk));
@@ -78,6 +44,12 @@ export const invoicePdf = async (
     doc.end();
   });
 };
+
+// ======================================================================
+// ======================================================================
+// ========================= HEADER FUNCTIONS ===========================
+// ======================================================================
+// ======================================================================
 
 const generateHeaderInvoice = (
   data: any,
@@ -99,6 +71,42 @@ const generateHeaderInvoice = (
     .fontSize(10)
     .text(BRAND_PLACE, 200, 80, { align: 'right' })
     .moveDown();
+};
+
+// ======================================================================
+// ======================================================================
+// ========================= FOOTER FUNCTIONS ===========================
+// ======================================================================
+// ======================================================================
+
+const generateFooterInvoce = (data: any, imagePath: string) => {
+  return data
+    .image(imagePath, 140, 775, { width: 20, align: 'center' }) // (text, x, y, options)
+    .fontSize(10)
+    .text(FOOTER_TEXT, 50, 780, {
+      align: 'center',
+      width: 500,
+    });
+};
+
+// ======================================================================
+// ======================================================================
+// =========================== HR FUNCTIONS =============================
+// ======================================================================
+// ======================================================================
+
+const generateHr = (
+  doc: any,
+  y: number,
+  xInit: number = 50,
+  xEnd: number = 550
+) => {
+  return doc
+    .strokeColor('#aaaaaa')
+    .lineWidth(1)
+    .moveTo(xInit, y)
+    .lineTo(xEnd, y)
+    .stroke();
 };
 
 const generateCustomerInformation = (data: any, invoice: IInvoiceData) => {
@@ -192,128 +200,81 @@ const generateRow = (
 };
 
 const generateTableInvoice = (
-  data: any,
-  yLevel: number,
+  docContext: any,
   width: number,
-  products: IProduct[]
+  content: IPdfTable<any>
 ) => {
-  data = data
-    .fontSize(16)
+  docContext = docContext
+    .fontSize(content.titleFontSize)
     .font('Helvetica-Bold')
     .fillColor('#33658a')
-    .text(`Purchased Items`, 50, yLevel)
-    .fontSize(12)
+    .text(content.title, content.xInit, content.tablePosition)
+    .fontSize(content.subtitleFontSize)
     .font('Helvetica-Bold')
     .fillColor('#000000')
-    .text(`Description`, 50, yLevel + 20);
-  const headerNames = ['Product', 'Price', 'Amount', 'Tax', 'Total'];
-  const headerNamesWidth = [
-    width * 0.4,
-    width * 0.15,
-    width * 0.15,
-    width * 0.15,
-    width * 0.15,
-  ];
-  const headerInitWidth = [
-    50,
-    50 + width * 0.4,
-    50 + width * 0.55,
-    50 + width * 0.7,
-    50 + width * 0.85,
-  ];
-  const headerFontSize = 14;
-  const ySpaceStep = 20;
-  const yHeaderLevel = yLevel + ySpaceStep * 2.3;
-  const headers = headerNames.map((header, index) => {
+    .text(
+      content.subtitle,
+      content.xInit,
+      content.tablePosition + content.yOffset
+    );
+  const initWidth = content.initWidth.map((initWidth, index) =>
+    index === 0 ? content.xInit : content.xInit + width * initWidth
+  );
+  const spacing = content.spacing.map(spacing => spacing * width);
+  const yHeaderLevel = content.tablePosition + content.yOffset * 2.5;
+  const headers = content.header.map((header, index) => {
     return generateRow(
       header,
-      headerFontSize,
-      'Helvetica-Bold',
-      headerNamesWidth[index],
-      header === headerNames[0] ? 'left' : 'right',
-      headerInitWidth[index],
+      content.headerFontSize,
+      content.headerFontFamily,
+      spacing[index],
+      content.aling[index],
+      initWidth[index],
       yHeaderLevel
     );
   });
   //GENERATE TABLE ROWS HEADER
-  data = generateTableRow(data, headers);
-  data = generateHr(data, yHeaderLevel + ySpaceStep);
-  const fontDataRowSize = 12;
+  docContext = generateTableRow(docContext, headers);
+  docContext = generateHr(docContext, yHeaderLevel + content.yOffset);
   // GENERATE EVERY ROW PRODUCTS
   let position = yHeaderLevel;
-  const productLength = products.length;
   let isResume = false;
   let isLastRow = false;
-  for (const [index, product] of products.entries()) {
-    const font = 'Helvetica';
-    position += ySpaceStep * 1.5;
-    //VALIDA SI SON LOS ULTIMOS 4 REGISTROS EN LA LISTA DE PRODUCTOS
-    if (index >= productLength - 4) {
+  for (const [index, currentData] of content.content.entries()) {
+    position += content.yOffset * 1.5;
+    //GENERATE ROW WITH FOR DATA
+    if (index === content.content.length - content.resumeRows) {
       isResume = true;
     }
-    //VALIDA LAST ROW
-    if (productLength === index + 1) {
+    if (index === content.content.length - 1) {
       isLastRow = true;
     }
-    //GENERATE ROW
-    const row = [
-      generateRow(
-        isResume ? '' : product.name,
-        fontDataRowSize,
-        font,
-        headerNamesWidth[0],
-        'left',
-        headerInitWidth[0],
+    const row = [];
+    for (const iterator of content.header.entries()) {
+      const newItem = generateRow(
+        currentData[content.nameRow[iterator[0]]],
+        content.contentFontSize,
+        content.contentFontFamily,
+        spacing[iterator[0]],
+        content.aling[iterator[0]],
+        initWidth[iterator[0]],
         position
-      ),
-      generateRow(
-        isResume ? '' : `$ ${(product.price - product.tax).toString()}`,
-        fontDataRowSize,
-        font,
-        headerNamesWidth[1],
-        'right',
-        headerInitWidth[1],
-        position
-      ),
-      generateRow(
-        isResume ? '' : product.quantity.toString(),
-        fontDataRowSize,
-        font,
-        headerNamesWidth[2],
-        'right',
-        headerInitWidth[2],
-        position
-      ),
-      generateRow(
-        isResume ? product.name : `$ ${product.tax.toString()}`,
-        fontDataRowSize,
-        font,
-        headerNamesWidth[3],
-        'right',
-        headerInitWidth[3],
-        position
-      ),
-      generateRow(
-        isResume
-          ? `$ ${product.price.toString()}`
-          : `$ ${(product.price * product.quantity).toString()}`,
-        fontDataRowSize,
-        font,
-        headerNamesWidth[4],
-        'right',
-        headerInitWidth[4],
-        position
-      ),
-    ];
-    data = generateTableRow(data, row);
+      );
+      row.push(newItem);
+    }
+    docContext = generateTableRow(docContext, row);
     if (!isLastRow) {
       const initialPosition = isResume
-        ? headerInitWidth[2]
-        : headerInitWidth[0];
-      data = generateHr(data, position + ySpaceStep, initialPosition);
+        ? initWidth[content.header.length - 2]
+        : initWidth[0];
+      docContext = generateHr(
+        docContext,
+        position + content.yOffset,
+        initialPosition
+      );
     }
   }
-  return data;
+  return docContext;
 };
 
 function generateTableRow(data, headers) {
@@ -328,27 +289,3 @@ function generateTableRow(data, headers) {
   });
   return data;
 }
-
-const generateFooterInvoce = (data: any, imagePath: string) => {
-  return data
-    .image(imagePath, 140, 775, { width: 20, align: 'center' }) // (text, x, y, options)
-    .fontSize(10)
-    .text(FOOTER_TEXT, 50, 780, {
-      align: 'center',
-      width: 500,
-    });
-};
-
-const generateHr = (
-  doc: any,
-  y: number,
-  xInit: number = 50,
-  xEnd: number = 550
-) => {
-  return doc
-    .strokeColor('#aaaaaa')
-    .lineWidth(1)
-    .moveTo(xInit, y)
-    .lineTo(xEnd, y)
-    .stroke();
-};
