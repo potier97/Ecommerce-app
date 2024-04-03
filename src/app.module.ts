@@ -21,6 +21,7 @@ import { UserModule } from './modules/user/user.module';
 import { ProductModule } from './modules/product/product.module';
 import { PurchaseModule } from './modules/purchase/purchase.module';
 import { CartModule } from './modules/cart/cart.module';
+import { EmailModule } from 'modules/email/email.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { CartModule } from './modules/cart/cart.module';
     ProductModule,
     PurchaseModule,
     CartModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [

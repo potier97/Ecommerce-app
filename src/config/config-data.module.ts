@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 //CONFIG
 import { Environments } from './environments';
 import envConfig from './env-config';
 
+@Global()
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -32,6 +33,9 @@ import envConfig from './env-config';
         MONGO_DATABASE: Joi.string().required(),
         MONGO_DATABASE_HOST: Joi.string().required(),
         MONGO_DATABASE_PORT: Joi.number().required(),
+        //RESEND
+        RESEND_API_KEY: Joi.string().required(),
+        EMAIL_SENDER: Joi.string().required(),
       }),
       expandVariables: false,
       validationOptions: {

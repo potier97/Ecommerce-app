@@ -16,5 +16,8 @@ export default registerAs('config', () => {
     mongoHost: process.env.MONGO_DATABASE_HOST,
     mongoPort: process.env.MONGO_DATABASE_PORT,
     port: process.env.PORT,
+    //RESEND
+    resendApiKey: process.env.RESEND_API_KEY,
+    emailSender: process.env.EMAIL_SENDER,
   };
 });

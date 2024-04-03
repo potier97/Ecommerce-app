@@ -8,7 +8,6 @@ export type InstallmentDocument = HydratedDocument<Installment>;
 export class Installment {
   //PAYMENT METHOD
   @Prop({
-    required: true,
     enum: Object.values(PaymentMethod),
     default: PaymentMethod.OTHER,
     type: String,
@@ -22,12 +21,40 @@ export class Installment {
   })
   public installment: number;
 
-  //AMOUNT TO PAY
+  //AMOUNT TO PAY (PRINCIPAL + INTEREST) CALCULATED
   @Prop({
     required: true,
     type: Number,
   })
   public amount: number;
+
+  //AMOUNT FROM CLIENT
+  @Prop({
+    required: true,
+    type: Number,
+  })
+  public amountPaid: number;
+
+  //INTEREST
+  @Prop({
+    required: true,
+    type: Number,
+  })
+  public interest: number;
+
+  //REAL AMOUNT TO PAY
+  @Prop({
+    required: true,
+    type: Number,
+  })
+  public principal: number;
+
+  //CURRENT DEBT
+  @Prop({
+    required: true,
+    type: Number,
+  })
+  public debt: number;
 
   //VALIDATE IF ALREADY PAID
   @Prop({
@@ -50,9 +77,14 @@ export class Installment {
   })
   public dueAt: Date;
 
-  //PAYMENT DATE
   @Prop({
     required: true,
+    type: Date,
+  })
+  public deadlineAt: Date;
+
+  //PAYMENT DATE
+  @Prop({
     type: Date,
   })
   public paymentAt: Date;

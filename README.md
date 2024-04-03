@@ -139,7 +139,7 @@ $  docker build --build-arg ENVIRONMENT_NAME=test -t mongo-app .
 Correr docker, se deben pasar las variables de entorno del archivo .env dado que se ignoran en el archivo Dockerfile.
 
 ```bash
-$ docker run -e PM2_PUBLIC_KEY=xxx -e PM2_SECRET_KEY=xxx -e MONGODB_URI=xxx -e MONGO_INITDB_ROOT_USERNAME=xxx -e MONGO_INITDB_ROOT_PASSWORD=xxx -e MONGO_DATABASE=xxx -e MONGO_DATABASE_HOST=xxx -e MONGO_DATABASE_PORT=xxx  -e NODE_ENV=development -e API_KEY=xxx -e JWT_SECRET=xxx -e JWT_EXPIRATION_TIME=xxx -e JWT_REFRESH_SECRET=xxx -e JWT_REFRESH_EXPIRATION_TIME=xxx -e JWT_REFRESH_KEY=xxx -p 3000:3000  --name mongonest-app mongo-app
+$ docker run -e PM2_PUBLIC_KEY=xxx -e PM2_SECRET_KEY=xxx -e MONGODB_URI=xxx -e MONGO_INITDB_ROOT_USERNAME=xxx -e MONGO_INITDB_ROOT_PASSWORD=xxx -e MONGO_DATABASE=xxx -e MONGO_DATABASE_HOST=xxx -e MONGO_DATABASE_PORT=xxx  -e NODE_ENV=development -e API_KEY=xxx -e JWT_SECRET=xxx -e JWT_EXPIRATION_TIME=xxx -e JWT_REFRESH_SECRET=xxx -e JWT_REFRESH_EXPIRATION_TIME=xxx -e JWT_REFRESH_KEY=xxx -e RESEND_API_KEY=xxx -e EMAIL_SENDER=xxx -p 3000:3000  --name mongonest-app mongo-app
 ```
  Para correr en segundo plano, se debe añadir el flag `-d` al comando anterior.
 
@@ -195,6 +195,13 @@ Para el consumo de las apis privadas debe enviar el `Authorization` en el header
 JWT_REFRESH_SECRET="refresh-secret-key-123"
 JWT_REFRESH_EXPIRATION_TIME="1h"
 ```
+
+## Email
+ 
+Se hace uso de `Resend` para el envio de correos, se cuenta con una blacklist que es manejada con un archivo de constantes.
+
+El correo se utiliza para la validación de nuevos usuarios, cambio de contraseña, envio de notificaciones /o errores, entre otros. 
+
 
 
 ## PDF - Recibo de Compra
