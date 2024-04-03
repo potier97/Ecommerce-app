@@ -11,12 +11,16 @@ export class EmailService {
   private readonly resend: Resend;
   private readonly sender: string = '';
   private readonly apiKey: string = '';
+  private readonly environment: string = '';
+  private readonly defaultEmail: string = '';
 
   constructor(
     @Inject(envConfig.KEY) private configService: ConfigType<typeof envConfig>
   ) {
-    this.apiKey = this.configService.emailSender;
+    this.apiKey = this.configService.resendApiKey;
     this.sender = this.configService.emailSender;
+    this.environment = this.configService.nodeEnv;
+    this.defaultEmail = this.configService.defaultEmail;
     this.resend = new Resend(this.apiKey);
   }
 
@@ -30,8 +34,17 @@ export class EmailService {
         subject: data.subject,
         text: data.message,
       };
+      if (this.environment !== 'production') {
+        template.to = this.defaultEmail;
+      }
       const result = await this.resend.emails.send(template);
-      this.logger.log(`Email sent: ${result.data}`);
+      if (result.error) {
+        this.logger.error(
+          `Error sending email: ${JSON.stringify(result.error)}`
+        );
+      } else {
+        this.logger.log(`Email sent with id: ${result.data.id}`);
+      }
       return result;
     } catch (error) {
       const errorMsg = error.message ? error.message : error;

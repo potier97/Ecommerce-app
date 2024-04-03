@@ -19,5 +19,6 @@ export default registerAs('config', () => {
     //RESEND
     resendApiKey: process.env.RESEND_API_KEY,
     emailSender: process.env.EMAIL_SENDER,
+    defaultEmail: process.env.DEFAULT_EMAIL,
   };
 });

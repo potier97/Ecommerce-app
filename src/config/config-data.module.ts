@@ -36,6 +36,7 @@ import envConfig from './env-config';
         //RESEND
         RESEND_API_KEY: Joi.string().required(),
         EMAIL_SENDER: Joi.string().required(),
+        DEFAULT_EMAIL: Joi.string().required(),
       }),
       expandVariables: false,
       validationOptions: {

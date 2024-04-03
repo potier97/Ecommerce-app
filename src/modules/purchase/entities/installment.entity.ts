@@ -6,7 +6,7 @@ export type InstallmentDocument = HydratedDocument<Installment>;
 
 @Schema()
 export class Installment {
-  //PAYMENT METHOD
+  //PAYMENT METHOD - FROM CLIENT
   @Prop({
     enum: Object.values(PaymentMethod),
     default: PaymentMethod.OTHER,
@@ -14,76 +14,77 @@ export class Installment {
   })
   public paymentMethod: string;
 
-  //CURRENT INSTALLMENT
+  //CURRENT INSTALLMENT - CALCULATED ON GENERATE
   @Prop({
     required: true,
     type: Number,
   })
   public installment: number;
 
-  //AMOUNT TO PAY (PRINCIPAL + INTEREST) CALCULATED
+  //AMOUNT TO PAY (PRINCIPAL + INTEREST) CALCULATED ON GENERATED
   @Prop({
     required: true,
     type: Number,
   })
   public amount: number;
 
-  //AMOUNT FROM CLIENT
+  //AMOUNT - FROM CLIENT /  CAN BE GREATER THAN AMOUNT
   @Prop({
     required: true,
     type: Number,
   })
   public amountPaid: number;
 
-  //INTEREST
+  //INTEREST - CALLCULATED ON GENERATED
   @Prop({
     required: true,
     type: Number,
   })
   public interest: number;
 
-  //REAL AMOUNT TO PAY
+  //REAL AMOUNT TO PAY - CALCUATED ON GENERATED
   @Prop({
     required: true,
     type: Number,
   })
   public principal: number;
 
-  //CURRENT DEBT
+  //CURRENT DEBT - CALCULATED ON GENERATED
   @Prop({
     required: true,
     type: Number,
   })
   public debt: number;
 
-  //VALIDATE IF ALREADY PAID
+  //VALIDATE IF ALREADY PAID - FROM CLIENT
   @Prop({
     required: true,
     type: Boolean,
   })
   public payment: boolean;
 
-  //VALIDATE IF PAYMENT IS DUE
+  //VALIDATE IF PAYMENT IS DUE - FROM CLIENT
   @Prop({
     required: true,
     type: Boolean,
   })
   public overdue: boolean;
 
-  //GENERATED PAYMENT DATE
+  //GENERATED PAYMENT DATE - CALCULATED ON GENERATED
   @Prop({
     required: true,
     type: Date,
   })
   public dueAt: Date;
 
+  //DEADLINE DATE - CALCULATED ON GENERATED
   @Prop({
     required: true,
     type: Date,
   })
   public deadlineAt: Date;
 
-  //PAYMENT DATE
+  //PAYMENT DATE - FROM CLIENT
   @Prop({
     type: Date,
   })

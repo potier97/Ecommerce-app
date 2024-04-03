@@ -78,6 +78,12 @@ export class InvoiceInfo {
 
   @Prop({
     required: true,
+    type: Number,
+  })
+  public dailyInterestRate: number;
+
+  @Prop({
+    required: true,
     type: Date,
   })
   public paidAt: Date;

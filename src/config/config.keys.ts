@@ -15,4 +15,5 @@ export enum Configuration {
   //RESEND
   RESEND_API = 'RESEND_API',
   EMAIL_SENDER = 'EMAIL_SENDER',
+  DEFAULT_EMAIL = 'DEFAULT_EMAIL',
 }

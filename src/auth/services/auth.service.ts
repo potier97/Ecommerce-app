@@ -20,6 +20,11 @@ import { IUserJwt } from 'shared/interfaces/userJwt.interface';
 import envConfig from 'config/env-config';
 //services
 import { UserService } from 'modules/user/services/user.service';
+import { emailWhiteList } from 'auth/constants/whiteList';
+import { EmailService } from 'modules/email/services/email.service';
+import { generateOtp } from 'shared/util/generateOtp';
+import { ResetPwdDto } from 'auth/dto/resetPwd.dto';
+import { UpdateUserDto } from 'modules/user/dto/update-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -28,10 +33,20 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
     @Inject(envConfig.KEY) private configService: ConfigType<typeof envConfig>
   ) {}
 
   public async signUp(user: SignUpDto): Promise<any> {
+    //ORIGIN DOMAIN VALIDATION
+    const isValidMail = this.validateEmail(user.email);
+    if (!isValidMail) {
+      throw new BadRequestException({
+        message: 'Correo no permitido',
+        error: true,
+        status: 400,
+      });
+    }
     const existingUser = await this.userService.findUserByEmail(user.email);
     if (existingUser) {
       throw new BadRequestException({
@@ -63,12 +78,39 @@ export class AuthService {
     const result = await this.userService.create(newUser);
 
     this.logger.log(`Create a new user: ${result['id']}`);
+    //SEND EMAIL
+    const message = `Hola ${result.firstName} ${result.lastName}, bienvenido a la plataforma, deberás confirmar tu correo electrónico para poder acceder a la plataforma.`;
+    await this.sendMail(result.email, message, 'Bienvenido');
     return {
       id: result['id'],
       username: `${result.firstName} ${result.lastName}`,
       email: result.email,
       role: result.role,
     };
+  }
+
+  private validateEmail(email: string): boolean {
+    const emailParts = email.split('@');
+    const domain = emailParts[emailParts.length - 1];
+    return emailWhiteList.includes(domain);
+  }
+
+  /**
+   * Send an email to the user
+   * @param email - Email to send
+   * @param message - Message to send
+   * @param subject - Subject of the email
+   */
+  private async sendMail(
+    email: string,
+    message: string,
+    subject: string
+  ): Promise<void> {
+    await this.emailService.sendEmail({
+      email: email,
+      message: message,
+      subject: subject,
+    });
   }
 
   public async validateUser(user: AuthDto): Promise<IUserCredential> {
@@ -138,6 +180,69 @@ export class AuthService {
         genre: userExist.genre,
       },
     };
+  }
+
+  async forgotPassword(email: string): Promise<string> {
+    try {
+      const userExist = await this.userService.findUserByEmail(email);
+      if (!userExist) {
+        throw new BadRequestException({
+          message: 'User not found',
+          error: true,
+          status: 400,
+        });
+      }
+      const token = generateOtp(3);
+      //SEND MAIL NOTIFICATION WITH TOKEN
+      const message = `Hola ${userExist.firstName}, hemos recibido una solicitud para cambiar tu contraseña, tu token es: ${token}`;
+      await this.sendMail(email, message, 'Cambio de contraseña');
+      return `Email sent to ${email}`;
+    } catch (error) {
+      this.logger.error('User cannot chang e the password');
+      throw new Error(error);
+    }
+  }
+
+  async resetPassword(data: ResetPwdDto): Promise<string> {
+    try {
+      //VALIDA ID TWO PASSWORDS ARE SAME
+      if (data.password !== data.repeatPassword) {
+        this.badRequestException('Invalid data');
+      }
+      //TODO: IMPLEMENTAR PERSISTENCIA DE TOKENS
+      const validateToken = data.token === '123';
+      if (!validateToken) {
+        this.badRequestException('Invalid data');
+      }
+      //TODO: OBTENER EL CORREO ASOCIADO AL TOKEN
+      const userExist = await this.userService.findUserByEmail('email');
+      const userId = userExist['id'];
+      const email = userExist.email;
+      const newPwd = await encryptPassword(data.password);
+      const updateUser: UpdateUserDto = {
+        password: newPwd,
+      };
+      //TODO: OBTENER EL ID DEL USUARIO
+      const result = await this.userService.update(userId, updateUser);
+      if (!result) {
+        this.badRequestException('Invalid data');
+      }
+      //SEND MAIL NOTIFICATION WITH TOKEN
+      const message = `Hola ${userExist.firstName}, su contraseña ha sido cambiada exitosamente.`;
+      await this.sendMail(email, message, 'Cambio de contraseña');
+      return `Email sent to ${email}`;
+    } catch (error) {
+      this.logger.error('User cannot chang e the password');
+      throw new Error(error);
+    }
+  }
+
+  private badRequestException(message: string) {
+    throw new BadRequestException({
+      message: message,
+      error: true,
+      status: 400,
+    });
   }
 
   async generateJwt(payload: IUserJwt): Promise<string> {

@@ -37,25 +37,25 @@ import { shippingRates } from 'shared/util/shippingRates';
 import { validInstallments } from 'shared/util/installments';
 import { invoicePdf } from 'shared/util/invoicePdf';
 import { installmentPlanPdf } from 'shared/util/planInstallmentPdf';
-import {
-  addDays,
-  addMonths,
-  differenceInDays,
-  format,
-  subMonths,
-} from 'date-fns';
+import { addDays, addMonths, format, subMonths } from 'date-fns';
 import { ICustomerInstallmentPlan } from 'shared/interfaces/installmentPlan.interface';
-import { Interval } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { Installment } from '../entities/installment.entity';
 import { EmailService } from 'modules/email/services/email.service';
 import { ISendEmail } from 'modules/email/interfaces/sendEmail.interface';
+import { IGeneratedPurchase } from '../interfaces/purchase.interface';
+import { PaymentMethod } from 'shared/interfaces/paymentMethod.enum';
+import { IInstallments } from '../interfaces/installments.interface';
 
 @Injectable()
 export class PurchaseService {
   private readonly logger = new Logger(PurchaseService.name);
 
-  //INTEREST RATE - 10%
+  //INTEREST ANUAL RATE - 10%
   private readonly annualInterest: number = 10;
+
+  //INTEREST DAILY RATE - 2%
+  private readonly dailyOverdueInterest: number = 2;
 
   constructor(
     @InjectModel(Purchase.name) private purchaseModel: Model<Purchase>,
@@ -281,9 +281,11 @@ export class PurchaseService {
     let totalDebt = 0;
     let share = 0;
     let interest = 0;
+    let dailyInterestRate = 0;
     if (createPurchaseDto.financed) {
       totalDebt = totalCost;
       interest = this.annualInterest;
+      dailyInterestRate = this.dailyOverdueInterest;
       if (createPurchaseDto.initialPayment > 0) {
         totalDebt -= createPurchaseDto.initialPayment;
       }
@@ -304,6 +306,7 @@ export class PurchaseService {
       tax: productsCost.tax,
       otherCosts: 0,
       total: totalCost,
+      dailyInterestRate: dailyInterestRate,
       debt: totalDebt,
       interest: interest,
       paidAt: new Date(),
@@ -574,14 +577,16 @@ export class PurchaseService {
   }
 
   // EVERY 2 SECONSA
-  @Interval(2000)
+  // @Interval(2000)
+  //EVERY DAY AT 12:00 PM
+  @Cron('0 12 * * *')
   async generateNewInstallment(): Promise<void> {
-    //TODO: Obtener la fecha actual y sume un dia
+    //CURRENT DATE - GET TOMORROW DATE
     const currentDate = addDays(new Date(), 1);
-    // Restar un mes a la fecha actual
+    //SUBSTRACT ONE MONTH
     const oneMonthAgo = subMonths(new Date(), 1);
     this.logger.debug('Generate new installment');
-    const result = await this.purchaseModel
+    const result: IGeneratedPurchase[] = await this.purchaseModel
       .aggregate([
         {
           $match: {
@@ -608,7 +613,7 @@ export class PurchaseService {
           },
         },
         {
-          //VERIFY IF THE LAST INSTALLMENT WAS PAID OR ITS THE FIRST
+          //VERIFY IF THE LAST INSTALLMENT WAS PAID, ITS THE FIRST OR IS OVERDUE
           $match: {
             $or: [
               {
@@ -640,11 +645,53 @@ export class PurchaseService {
           },
         },
         {
+          $addFields: {
+            isFirst: {
+              $cond: {
+                if: { $eq: ['$lastInstallment', null] },
+                then: true,
+                else: false,
+              },
+            },
+            isNext: {
+              $cond: {
+                if: {
+                  $and: [
+                    {
+                      $ne: [
+                        { $ifNull: ['$lastInstallment.amountPaid', null] },
+                        null,
+                      ],
+                    },
+                    { $lte: ['$lastInstallment.dueAt', oneMonthAgo] },
+                    { $eq: ['$lastInstallment.payment', true] },
+                  ],
+                },
+                then: true,
+                else: false,
+              },
+            },
+            isOverdue: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $lt: ['$lastInstallment.deadlineAt', currentDate] },
+                    { $eq: ['$lastInstallment.payment', false] },
+                  ],
+                },
+                then: true,
+                else: false,
+              },
+            },
+          },
+        },
+        {
           $project: {
-            'costumer._id': 0,
-            'costumer.userId': 0,
+            'customer._id': 0,
+            'customer.userId': 0,
             'invoice._id': 0,
             'invoice.paymentMethod': 0,
+            totalShares: 0,
             shipping: 0,
             products: 0,
             active: 0,
@@ -655,11 +702,9 @@ export class PurchaseService {
         },
       ])
       .exec();
-    this.logger.log(`Total found: ${result.length}`);
-    if (result.length === 0) {
-      return;
-    }
-    let installmentGenerated = 0;
+    if (result.length === 0) return;
+    //ITERATE OVER PURCHASES
+    let generate = 0;
     for (const purchase of result) {
       //CALCULATE NEW INSTALLMENT
       const pId = purchase['_id'];
@@ -672,167 +717,197 @@ export class PurchaseService {
         this.logger.log(`All installments have been generated`);
         continue;
       }
-      //VALIDATE IF CURRENT INSTALLMENT WAS GENERATE BEFORE A MONTH
-      let isFirst = false;
-      let isNext = false;
-      let isOverdue = false;
-      let currentDebt;
-      if (purchase.installments.length === 0) {
-        isFirst = true;
-        currentDebt = purchase.invoice.debt;
-      } else {
-        currentDebt =
-          purchase.installments[purchase.installments.length - 1].debt;
-      }
+      //VALIDATE INSTALLMENT TYPE
+      const isFirst = purchase.isFirst;
+      const isNext = purchase.isNext;
+      const isOverdue = purchase.isOverdue;
+
       //GET ACTUAL DEBT
       const totalShares = purchase.invoice.share;
       const currentShare = purchase.invoice.currentShare;
       const anualInterest = purchase.invoice.interest;
+      const purchaseDate = purchase.invoice.paidAt;
       //VALIDATE IF DATA IS CORRECT
-      if (
-        isNaN(currentDebt) ||
-        isNaN(totalShares) ||
-        isNaN(currentShare) ||
-        isNaN(anualInterest)
-      ) {
+      if (isNaN(totalShares) || isNaN(currentShare) || isNaN(anualInterest)) {
         this.logger.error(`Error getting purchase values by id ${pId}`);
         continue;
       }
       this.logger.log(`Anual Interest: ${anualInterest}`);
-      this.logger.log(`Current Debt: $ ${currentDebt}`);
       this.logger.log(`Actual Share: ${currentShare} over ${totalShares}`);
-
       //VALIDATE FLOWS
       if (currentShare >= totalShares) {
-        this.logger.error(`All installments have been generated`);
-        continue;
-      }
-      //VALIDAR QUE LA ULTIMA CUTA ESTE PAGA
-      if (!isFirst) {
-        const lastInstallment =
-          purchase.installments[purchase.installments.length - 1];
-        const daysDeadLine = differenceInDays(
-          currentDate,
-          lastInstallment.deadlineAt
-        );
-        const daysDue = differenceInDays(currentDate, lastInstallment.dueAt);
-        console.log('dias pasados del deadline' + daysDeadLine);
-        console.log('dias pasados del due' + daysDue);
-        //VALIDATE IF IS THE FIRST INSTALLMENT
-        if (lastInstallment.payment && daysDue > 30) {
-          isNext = true;
-          //VALIDATE IF IS OVERDUE
-        } else if (!lastInstallment.payment && daysDeadLine >= 1) {
-          isOverdue = true;
-          this.logger.log(`The last installment is overdue`);
-          //
-        } else if (!lastInstallment.payment && daysDeadLine < 1) {
-          this.logger.log(`The last installment is not overdue`);
-        }
-      }
-
-      console.log('isFirst' + isFirst);
-      console.log('isNext' + isNext);
-      console.log('isOverdue' + isOverdue);
-
-      // throw new Error('Method not implemented.');
-      //CALCULATE MONTHLY PAYMENT
-      const monthlyPayment = this.calculatePaymentMonth(
-        currentDebt,
-        totalShares,
-        anualInterest
-      );
-      //CALCULATE INTEREST
-      const interest = currentDebt * monthlyPayment.interestMonth;
-      //TOTAL OF DEBT
-      const monthlyDeb = monthlyPayment.monthlyPayment - interest;
-      //CALCULATE NEW DEBT
-      const newDebt = currentDebt - monthlyDeb;
-
-      //VERIFY VALUES IS CORRECT
-      if (isNaN(interest) || isNaN(monthlyDeb) || isNaN(newDebt)) {
-        this.logger.error(`Error calculating new installment`);
+        this.logger.error(`🥳🥳🥳 All installments have been generated`);
         continue;
       }
 
-      const newInstallment = {
-        date: format(addMonths(new Date(), 1), 'dd/MM/yy'),
-        installment: currentShare,
-        monthlyPayment: parseFloat(monthlyPayment.monthlyPayment.toFixed(2)),
-        interest: parseFloat(interest.toFixed(2)),
-        principal: parseFloat(
-          (Math.round(monthlyDeb * 1000) / 1000).toFixed(2)
-        ),
-        debt: parseFloat((Math.round(newDebt * 1000) / 1000).toFixed(2)),
-      };
-      this.logger.log(`New fee date:       $ ${newInstallment.date}`);
-      this.logger.log(`New fee - N°:       $ ${newInstallment.installment}`);
-      this.logger.log(`New fee - pay:      $ ${newInstallment.monthlyPayment}`);
-      this.logger.log(`New fee - interest: $ ${newInstallment.interest}`);
-      this.logger.log(`New fee - principal:$  ${newInstallment.principal}`);
-      this.logger.log(`New fee - debt:     $  ${newInstallment.debt}`);
-
-      //GET CUSTOMER INFO
-      const userMail = purchase.customer.email;
-      //UPDATE PURCHASE
-      const newI: Installment = {
-        amount: newInstallment.monthlyPayment,
-        dueAt: currentDate,
-        deadlineAt: addMonths(currentDate, 1),
-        overdue: false,
-        payment: false,
-        installment: null,
-        paymentAt: null,
-        paymentMethod: null,
-        amountPaid: null,
-        //WHEN THE USER PAY CHANGE VALUE
-        debt: null,
-        interest: newInstallment.interest,
-        principal: newInstallment.principal,
-      };
-
-      let result;
+      let newI: Installment;
       if (isFirst) {
-        this.logger.log(`First installment OK`);
-        result = await this.purchaseModel.findByIdAndUpdate(pId, {
-          $push: { installments: newI },
-          $inc: {
-            'invoice.currentShare': 1,
-          },
-        });
+        this.logger.log(`🙀😾 Generating First Installment`);
+        newI = await this.genrateNewInstallment(
+          purchase.invoice.debt,
+          totalShares,
+          currentShare,
+          anualInterest,
+          purchaseDate
+        );
+      } else if (isNext) {
+        this.logger.log(`🤑🤑 Generating Next Installment`);
+        const lastInstallment = purchase.installments[-1];
+        newI = await this.genrateNewInstallment(
+          lastInstallment.debt,
+          totalShares,
+          currentShare,
+          anualInterest,
+          purchaseDate
+        );
+      } else if (isOverdue) {
+        this.logger.log(`😡😡 Generating Overdue Installment`);
+        const lastInstallment = purchase.installments[-1];
+        const debt = lastInstallment.debt + lastInstallment.amount;
+        newI = await this.genrateNewInstallment(
+          debt,
+          totalShares,
+          currentShare,
+          anualInterest,
+          purchaseDate
+        );
+        lastInstallment.paymentMethod = PaymentMethod.NOT_DEFINED;
+        lastInstallment.amountPaid = 0;
+        lastInstallment.payment = false;
+        lastInstallment.overdue = true;
+        lastInstallment.paymentAt = null;
+        await this.updateInstallment(pId, lastInstallment._id, lastInstallment);
       } else {
-        this.logger.log(`No its the first installment`);
-        result = await this.purchaseModel.findByIdAndUpdate(pId, {
-          $push: { installments: newI },
-          $inc: {
-            'invoice.currentShare': 1,
-          },
-        });
-      }
-      if (!result) {
-        this.logger.error(`Error updating purchase with id ${pId}`);
+        this.logger.log(`🤔🤔💀 Error validating installment type`);
         continue;
       }
-      const newInstallmentLength = result.installments.length;
-      this.logger.log(`New installment length: ${newInstallmentLength}`);
 
-      //TODO: SEND EMAIL
-      this.logger.log(`Sending email to ${userMail}`);
+      if (!newI) {
+        this.logger.log(`👿👿 Error calculating new Installment`);
+        continue;
+      }
+
+      this.logger.log(`Limit date: $ ${format(newI.deadlineAt, 'dd/MM/yy')}`);
+      this.logger.log(`N°:         $ ${newI.installment}`);
+      this.logger.log(`Pay:        $ ${newI.amount}`);
+      this.logger.log(`Interest:   $ ${newI.interest}`);
+      this.logger.log(`Principal:  $  ${newI.principal}`);
+      this.logger.log(`Debt:       $  ${newI.debt}`);
+
+      this.logger.log(`Adding new installment to purchase: ${pId}`);
+      const result = await this.purchaseModel.findByIdAndUpdate(pId, {
+        $push: { installments: newI },
+        $inc: {
+          'invoice.currentShare': 1,
+        },
+      });
+      if (!result) {
+        this.logger.warn(`🤢🤢 Error updating purchase with id ${pId}`);
+        continue;
+      }
+
+      this.logger.log(`🤠🤠 Installment generated`);
       const mailData: ISendEmail = {
-        // email: userMail,
-        email: 'nicolaspotier97@gmail.com',
+        email: purchase.customer.email,
         message: `New installment generated for purchase: ${pId}`,
         subject: 'New installment generated',
       };
-      const resultMail = await this.emailService.sendEmail(mailData);
-      console.log(resultMail);
-
-      this.logger.log(`\n \n`);
-      installmentGenerated++;
+      await this.emailService.sendEmail(mailData);
+      generate++;
     }
-    this.logger.log(`Total installments generated: ${installmentGenerated}`);
+    this.logger.log(`Total Purchases found: ${result.length}`);
+    this.logger.log(`Total installments generated: ${generate}`);
   }
 
+  /**
+   * Create a new Installment dto
+   * @param currentDebt - Current debt
+   * @param totalShares - Total shares
+   * @param share - share length
+   * @param anualInterest - Anual interest
+   * @param purchaseDate - purchaseDate date
+   * @returns {{Installment | void}} - New installment
+   */
+  async genrateNewInstallment(
+    currentDebt: number,
+    totalShares: number,
+    share: number,
+    anualInterest: number,
+    purchaseDate: Date
+  ): Promise<Installment> {
+    //CALCULATE MONTHLY PAYMENT
+    const monthlyPayment = this.calculatePaymentMonth(
+      currentDebt,
+      totalShares,
+      anualInterest
+    );
+    //CALCULATE CURRENT SHARE
+    const currentShare = share + 1;
+    //CALCULATE INTEREST
+    const interest = currentDebt * monthlyPayment.interestMonth;
+    //TOTAL OF DEBT
+    const monthlyDeb = monthlyPayment.monthlyPayment - interest;
+    //CALCULATE NEW DEBT
+    const newDebt = currentDebt - monthlyDeb;
+
+    //VERIFY VALUES IS CORRECT
+    if (isNaN(interest) || isNaN(monthlyDeb) || isNaN(newDebt)) {
+      this.logger.error(`Error calculating new installment`);
+      return;
+    }
+    return {
+      paymentMethod: PaymentMethod.NOT_DEFINED,
+      amount: parseFloat(monthlyPayment.monthlyPayment.toFixed(2)),
+      dueAt: addMonths(purchaseDate, currentShare),
+      deadlineAt: addDays(addMonths(purchaseDate, currentShare + 1), 1),
+      overdue: false,
+      installment: currentShare,
+      //WHEN THE USER PAY CHANGE VALUE
+      amountPaid: 0,
+      paymentAt: null,
+      payment: false,
+      // ---------------------
+      debt: parseFloat((Math.round(newDebt * 1000) / 1000).toFixed(2)),
+      interest: parseFloat(interest.toFixed(2)),
+      principal: parseFloat((Math.round(monthlyDeb * 1000) / 1000).toFixed(2)),
+    };
+  }
+
+  /**
+   * Update installment by id
+   * @param id - Id of purchase
+   * @param installmentId - Id of installment
+   * @param installment - Installment data
+   */
+  async updateInstallment(
+    id: string,
+    installmentId: string,
+    installment: IInstallments
+  ): Promise<boolean> {
+    const result = await this.purchaseModel.findOneAndUpdate(
+      { _id: id, 'installments._id': installmentId },
+      {
+        $set: {
+          'installments.$.paymentMethod': installment.paymentMethod,
+          'installments.$.amountPaid': installment.amountPaid,
+          'installments.$.payment': installment.payment,
+          'installments.$.overdue': installment.overdue,
+          'installments.$.paymentAt': installment.paymentAt,
+        },
+      }
+    );
+    if (!result) {
+      this.logger.error(`Installment with id ${installmentId} not found`);
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Remove purchase by id
+   * @param id
+   * @returns
+   */
   async remove(id: string): Promise<boolean> {
     const result = await this.purchaseModel.findOneAndUpdate(
       {

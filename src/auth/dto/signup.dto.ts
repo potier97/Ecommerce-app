@@ -9,6 +9,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { IsInMailWitheList } from 'shared/decorator/mail-withe-list/mail-withe-list.decorator';
 //SHARED
 import { Match } from 'shared/decorator/match/match.decorator';
 import { Genre } from 'shared/interfaces/genre.enum';
@@ -29,6 +30,7 @@ export class SignUpDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
+  @IsInMailWitheList({ message: 'Correo no permitido' })
   @IsEmail()
   @ApiProperty({ description: 'Correo Usuario' })
   public readonly email: string;

@@ -20,6 +20,8 @@ import { RefreshJwtAuthGuard } from '../guard/refresh-jwt-auth/refresh-jwt-auth.
 //SHARED
 import { IUserCredential } from 'shared/interfaces/userCredential.interface';
 import { CustomResponseDto } from 'shared/interfaces/customResponse.interface';
+import { ResetPwdDto } from 'auth/dto/resetPwd.dto';
+import { ForgotPwdDto } from 'auth/dto/forgotPwd.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -49,6 +51,58 @@ export class AuthController {
     return await this.authService.generateToken(req.user.email);
   }
 
+  @HttpCode(HttpStatus.OK)
+  @Post('forgotPassword')
+  async forgotPassword(
+    @Body() body: ForgotPwdDto
+  ): Promise<CustomResponseDto<string>> {
+    try {
+      const result = await this.authService.forgotPassword(body.email);
+      return {
+        status: true,
+        message: 'Password changed',
+        content: result,
+      };
+    } catch (error) {
+      const errorMsg = error.message ? error.message : error;
+      this.logger.error(errorMsg);
+      throw new HttpException(
+        {
+          status: HttpStatus.UNAUTHORIZED,
+          message: 'User not found',
+          content: false,
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('resetPassword')
+  async resetPassword(
+    @Body() body: ResetPwdDto
+  ): Promise<CustomResponseDto<string>> {
+    try {
+      const result = await this.authService.resetPassword(body);
+      return {
+        status: true,
+        message: 'Password changed',
+        content: result,
+      };
+    } catch (error) {
+      const errorMsg = error.message ? error.message : error;
+      this.logger.error(errorMsg);
+      throw new HttpException(
+        {
+          status: HttpStatus.UNAUTHORIZED,
+          message: 'Password not changed',
+          content: false,
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   public async getProfile(@Request() req): Promise<CustomResponseDto<any>> {
@@ -60,7 +114,8 @@ export class AuthController {
         content: await this.authService.getProfile(req.user.email),
       };
     } catch (error) {
-      this.logger.error(error);
+      const errorMsg = error.message ? error.message : error;
+      this.logger.error(errorMsg);
       throw new HttpException(
         {
           status: HttpStatus.UNAUTHORIZED,

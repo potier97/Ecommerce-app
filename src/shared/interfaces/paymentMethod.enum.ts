@@ -6,4 +6,5 @@ export enum PaymentMethod {
   TRANSFER = 'Transfer',
   CHECK = 'Check',
   OTHER = 'Other',
+  NOT_DEFINED = 'Not Defined',
 }

@@ -1,14 +1,12 @@
-export interface IInvoicePurchase {
-  paymentMethod: string;
+export interface IInvoice {
   paid: boolean;
   financed: boolean;
   share: number;
   currentShare: number;
-  subtotal: number;
   tax: number;
+  subtotal: number;
   otherCosts: number;
   total: number;
-  dailyInterestRate: number;
   debt: number;
   interest: number;
   paidAt: Date;
