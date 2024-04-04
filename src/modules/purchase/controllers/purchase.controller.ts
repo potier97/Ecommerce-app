@@ -112,13 +112,29 @@ export class PurchaseController {
     }
   }
 
-  //TODO: PENDIENTE AL IMPLEMENTAR EL SERVICIO DE PAGO A CUOTAS
-  @Put('pay-share/:id/share/:share')
-  payShare(
+  @Put('pay/:id/installment/:insId')
+  async payInstallment(
     @Param('id', MongoIdPipe) id: string,
-    @Param('shareId') share: number
-  ) {
-    return this.purchaseService.payShare(id, share);
+    @Param('insId', MongoIdPipe) insId: string
+  ): Promise<CustomResponseDto<any>> {
+    try {
+      const result = await this.purchaseService.payInstallment(id, insId);
+      return {
+        content: result,
+        message: `Installment ${insId} paid successfully`,
+        status: true,
+      };
+    } catch (error) {
+      this.logger.error(error);
+      throw new HttpException(
+        {
+          status: HttpStatus.BAD_REQUEST,
+          message: error.message ? error.message : 'Error paying installment',
+          content: false,
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
   }
 
   @Get('download-payment-plan/:id')

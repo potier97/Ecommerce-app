@@ -59,10 +59,10 @@ export class PurchaseService {
 
   constructor(
     @InjectModel(Purchase.name) private purchaseModel: Model<Purchase>,
+    @InjectConnection() private readonly connection: Connection,
     private readonly cartService: CartService,
     private readonly userService: UserService,
     private readonly productService: ProductService,
-    @InjectConnection() private readonly connection: Connection,
     private readonly emailService: EmailService
   ) {}
 
@@ -397,19 +397,37 @@ export class PurchaseService {
     return result;
   }
 
-  async payShare(id: string, share: number) {
-    const purchase = this.purchaseModel.findByIdAndUpdate(
-      { _id: id },
-      { $inc: { 'invoice.shares.$[element].paid': share } }
+  async payInstallment(id: string, InsId: string): Promise<Purchase> {
+    const result = await this.purchaseModel.findOne(
+      {
+        _id: id,
+        active: true,
+        'invoice.paid': false,
+        'installments._id': InsId,
+      },
+      {
+        products: 0,
+        'customer._id': 0,
+        'customer.userId': 0,
+        'customer.phone': 0,
+        active: 0,
+        shipping: 0,
+        __v: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      }
     );
-    if (!purchase) {
-      throw new NotFoundException({
-        message: 'Purchase not found',
-        error: true,
-        status: 404,
-      });
+    if (!result) {
+      this.purchaseException('Purchase not found');
     }
-    return purchase;
+    //TODO: VALIDATE IF INSTALLMENT IS PAID
+    //TODO: VALIDATE IF INSTALLMENT IS OVERDUE
+    //TODO: VALIDATE IF INSTALLMENT IS THE NEXT
+    //TODO: VALIDATE IF INSTALLMENT IS THE FIRST
+    //TODO: VALIDATE IF INSTALLMENT IS THE LAST
+    //TODO: VALIDATE IF INSTALLMENT IS THE LAST AND IS PAID
+    //TODO: VALIDATE IF INSTALLMENT IS THE LAST AND IS OVERDUE
+    return result;
   }
 
   /**
@@ -577,7 +595,7 @@ export class PurchaseService {
   }
 
   // EVERY 2 SECONSA
-  // @Interval(2000)
+  //@Interval(2000)
   //EVERY DAY AT 12:00 PM
   @Cron('0 12 * * *')
   async generateNewInstallment(): Promise<void> {
@@ -616,8 +634,20 @@ export class PurchaseService {
           //VERIFY IF THE LAST INSTALLMENT WAS PAID, ITS THE FIRST OR IS OVERDUE
           $match: {
             $or: [
+              //WHEN CREATE THE FIRST INSTALLMENT AND A MONTH HAS PASSED
               {
-                //HAPPY FLOW
+                $and: [
+                  { lastInstallment: { $eq: null } },
+                  //VALIDATE IF INVOICE WAS A MONTH AGO
+                  {
+                    $expr: {
+                      $lt: ['$invoice.paidAt', oneMonthAgo],
+                    },
+                  },
+                ],
+              },
+              {
+                //HAPPY FLOW - NEXT INSTALLMENT
                 $and: [
                   { 'lastInstallment.amountPaid': { $ne: null } },
                   {
@@ -628,8 +658,6 @@ export class PurchaseService {
                   { 'lastInstallment.payment': { $eq: true } },
                 ],
               },
-              //WHEN CREATE THE FIRST INSTALLMENT
-              { lastInstallment: { $eq: null } },
               //WHEN THE PAY IS OVERDUE
               {
                 $and: [
@@ -648,7 +676,14 @@ export class PurchaseService {
           $addFields: {
             isFirst: {
               $cond: {
-                if: { $eq: ['$lastInstallment', null] },
+                if: {
+                  $and: [
+                    //validate if installments length is 0
+                    { $eq: [{ $size: '$installments' }, 0] },
+                    //VALIDTE lastInstallment IF A EMPTY LIST
+                    { $lt: ['$invoice.paidAt', oneMonthAgo] },
+                  ],
+                },
                 then: true,
                 else: false,
               },
@@ -702,6 +737,7 @@ export class PurchaseService {
         },
       ])
       .exec();
+    // console.log('result -> ', result[0].lastInstallment);
     if (result.length === 0) return;
     //ITERATE OVER PURCHASES
     let generate = 0;
@@ -739,6 +775,10 @@ export class PurchaseService {
         this.logger.error(`🥳🥳🥳 All installments have been generated`);
         continue;
       }
+
+      console.log('isFirst -> ', isFirst);
+      console.log('isNext -> ', isNext);
+      console.log('isOverdue -> ', isOverdue);
 
       let newI: Installment;
       if (isFirst) {
@@ -794,19 +834,31 @@ export class PurchaseService {
       this.logger.log(`Principal:  $  ${newI.principal}`);
       this.logger.log(`Debt:       $  ${newI.debt}`);
 
-      this.logger.log(`Adding new installment to purchase: ${pId}`);
-      const result = await this.purchaseModel.findByIdAndUpdate(pId, {
-        $push: { installments: newI },
-        $inc: {
-          'invoice.currentShare': 1,
+      const result = await this.purchaseModel.findByIdAndUpdate(
+        pId,
+        {
+          $push: { installments: newI },
+          $inc: {
+            'invoice.currentShare': 1,
+          },
         },
-      });
+        {
+          new: true,
+          projection: { installments: 1 },
+        }
+      );
       if (!result) {
         this.logger.warn(`🤢🤢 Error updating purchase with id ${pId}`);
         continue;
       }
+      //GET ID OF LAST INSTALLMENT
+      const lastInstallment =
+        result.installments[result.installments.length - 1];
+      console.log('lastInstallment -> ', lastInstallment);
 
-      this.logger.log(`🤠🤠 Installment generated`);
+      this.logger.log(
+        `🤠🤠 Installment generated with id: ${lastInstallment['_id']}`
+      );
       const mailData: ISendEmail = {
         email: purchase.customer.email,
         message: `New installment generated for purchase: ${pId}`,
