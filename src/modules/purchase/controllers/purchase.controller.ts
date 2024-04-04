@@ -26,6 +26,7 @@ import { PaginationDto } from 'shared/dtos/pagination.dto';
 import { CustomResponseDto } from 'shared/interfaces/customResponse.interface';
 import { Response } from 'express';
 import { IInvoiceData } from 'shared/interfaces/invoiceData.interface';
+import { PayInstallmentDto } from '../dto/pay-installment.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -115,10 +116,11 @@ export class PurchaseController {
   @Put('pay/:id/installment/:insId')
   async payInstallment(
     @Param('id', MongoIdPipe) id: string,
-    @Param('insId', MongoIdPipe) insId: string
+    @Param('insId', MongoIdPipe) insId: string,
+    @Body() data: PayInstallmentDto
   ): Promise<CustomResponseDto<any>> {
     try {
-      const result = await this.purchaseService.payInstallment(id, insId);
+      const result = await this.purchaseService.payInstallment(id, insId, data);
       return {
         content: result,
         message: `Installment ${insId} paid successfully`,

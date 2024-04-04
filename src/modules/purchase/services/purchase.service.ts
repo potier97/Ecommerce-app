@@ -37,7 +37,13 @@ import { shippingRates } from 'shared/util/shippingRates';
 import { validInstallments } from 'shared/util/installments';
 import { invoicePdf } from 'shared/util/invoicePdf';
 import { installmentPlanPdf } from 'shared/util/planInstallmentPdf';
-import { addDays, addMonths, format, subMonths } from 'date-fns';
+import {
+  addDays,
+  addMonths,
+  differenceInDays,
+  format,
+  subMonths,
+} from 'date-fns';
 import { ICustomerInstallmentPlan } from 'shared/interfaces/installmentPlan.interface';
 import { Cron } from '@nestjs/schedule';
 import { Installment } from '../entities/installment.entity';
@@ -46,6 +52,10 @@ import { ISendEmail } from 'modules/email/interfaces/sendEmail.interface';
 import { IGeneratedPurchase } from '../interfaces/purchase.interface';
 import { PaymentMethod } from 'shared/interfaces/paymentMethod.enum';
 import { IInstallments } from '../interfaces/installments.interface';
+import { PayInstallmentDto } from '../dto/pay-installment.dto';
+import { InvoiceInfo } from '../entities/invoice.entity';
+import { ICalculatePayment } from '../interfaces/calculate-payment.interface';
+import { IPreviousDebt } from '../interfaces/previous-debt.interface';
 
 @Injectable()
 export class PurchaseService {
@@ -397,12 +407,17 @@ export class PurchaseService {
     return result;
   }
 
-  async payInstallment(id: string, InsId: string): Promise<Purchase> {
+  async payInstallment(
+    id: string,
+    InsId: string,
+    data: PayInstallmentDto
+  ): Promise<Purchase> {
     const result = await this.purchaseModel.findOne(
       {
         _id: id,
         active: true,
         'invoice.paid': false,
+        'invoice.financed': true,
         'installments._id': InsId,
       },
       {
@@ -420,14 +435,270 @@ export class PurchaseService {
     if (!result) {
       this.purchaseException('Purchase not found');
     }
-    //TODO: VALIDATE IF INSTALLMENT IS PAID
-    //TODO: VALIDATE IF INSTALLMENT IS OVERDUE
-    //TODO: VALIDATE IF INSTALLMENT IS THE NEXT
-    //TODO: VALIDATE IF INSTALLMENT IS THE FIRST
-    //TODO: VALIDATE IF INSTALLMENT IS THE LAST
-    //TODO: VALIDATE IF INSTALLMENT IS THE LAST AND IS PAID
-    //TODO: VALIDATE IF INSTALLMENT IS THE LAST AND IS OVERDUE
-    return result;
+    //FIRST PAYMENT
+    const isFirst = result.invoice.currentShare === 1;
+    //CURRENT INSTALLMENT
+    const currentInstallmentData = result.installments.find(
+      Ins => Ins['_id'] === InsId
+    );
+
+    this.paymentValidations(currentInstallmentData, result.invoice);
+
+    //PAYMENT DATE
+    const currentDate = new Date();
+    const clientPayment = data.amountPaid;
+
+    let newStatus;
+    if (isFirst) {
+      const paymentData = await this.calculateCurrentPayment(
+        currentInstallmentData,
+        clientPayment,
+        currentDate,
+        result.invoice.dailyInterestRate
+      );
+      this.logger.log(`🙀😾 Pay the first Bill`);
+      const newPayInstallment: IInstallments = {
+        paymentMethod: data.paymentMethod,
+        amountPaid: clientPayment,
+        paymentAt: currentDate,
+        payment: true,
+        overdue: paymentData.overdue,
+        debt: paymentData.debt,
+        penaltyFee: paymentData.penaltyFee,
+        capital: paymentData.capital,
+      };
+      newStatus = await this.updateInstallment(id, InsId, newPayInstallment);
+    } else {
+      this.logger.log(`🤑🤑 Paying next installment`);
+      //VERIFIY THE CURRENT INSTALLMENT IS THE LAST ONE
+      const isLastGenerate =
+        result.invoice.currentShare === result.invoice.share &&
+        result.installments[result.invoice.currentShare - 1]['_id'] === InsId;
+      if (!isLastGenerate) {
+        this.purchaseException(
+          'This is not the last valid installment to pay, please pay the overdue installment'
+        );
+      }
+
+      //FILTER PREVIUS INSTALLMENT WAS NOT PAID AND IS OVERDUE AND AMOUNT IS GREATER THAN 0 AND IT IS NOT THE CURRENT INSTALLMENT
+      const previousIns = result.installments.filter(
+        Ins =>
+          !Ins.payment && Ins.overdue && Ins.amount > 0 && Ins['_id'] !== InsId
+      );
+
+      let previusDebt: IPreviousDebt = {
+        daysOverdue: 0,
+        totalAmount: 0,
+        totalPenaltyFee: 0,
+      };
+      if (previousIns.length > 0) {
+        //ADD REDUCE METHOD TO CALCULATE ALL DEBT IN OVERDUE
+        previusDebt = await previousIns.reduce(
+          (acc, curr) => {
+            const previusAmount = acc.totalAmount + curr.amount;
+            //CALCULATE PENALTY FEE
+            const currentPenaltyFee = this.calculateOverdue(
+              curr.amount,
+              currentDate,
+              curr.deadlineAt,
+              result.invoice.dailyInterestRate
+            );
+            const penaltyFee = acc.totalPenaltyFee + currentPenaltyFee.overdue;
+            const daysOverdue = acc.daysOverdue + currentPenaltyFee.daysOverdue;
+            return {
+              totalAmount: previusAmount,
+              totalPenaltyFee: penaltyFee,
+              daysOverdue: daysOverdue,
+            };
+          },
+          {
+            totalAmount: 0,
+            totalPenaltyFee: 0,
+            daysOverdue: 0,
+          }
+        );
+        this.logger.log(`Previous Debt: $ ${previusDebt.totalAmount}`);
+        this.logger.log(
+          `Previous Penalty Fee: $ ${previusDebt.totalPenaltyFee}`
+        );
+        this.logger.log(`Previous Days Overdue: ${previusDebt.daysOverdue}`);
+      }
+      //TODO: VALIDAR CUOTAS PENDIENTES PARA EL COBRO DE INTERESES
+      // if (previusDebt.totalAmount > 0) {
+      //   currentInstallmentData.amount = previusDebt.totalAmount;
+      //   currentInstallmentData.penaltyFee = previusDebt.totalPenaltyFee;
+      //   currentInstallmentData.overdue = true;
+      // }
+      //CALCULATE CURRENT INSTALLMENT
+      const paymentData = await this.calculateCurrentPayment(
+        currentInstallmentData,
+        clientPayment,
+        currentDate,
+        result.invoice.dailyInterestRate
+      );
+      const newPayInstallment: IInstallments = {
+        paymentMethod: data.paymentMethod,
+        amountPaid: clientPayment,
+        paymentAt: currentDate,
+        payment: true,
+        overdue: paymentData.overdue,
+        debt: paymentData.debt,
+        penaltyFee: paymentData.penaltyFee,
+        capital: paymentData.capital,
+      };
+      newStatus = await this.updateInstallment(id, InsId, newPayInstallment);
+      if (paymentData.isTotalDebt) {
+        this.logger.log(`🎉🎉🎉 All installments have been paid`);
+      }
+    }
+
+    if (!newStatus) {
+      this.purchaseException('Error updating installment');
+    }
+
+    this.logger.log(`🎉🎉🎉 Installment with id ${InsId} has been paid`);
+
+    return newStatus;
+  }
+
+  /**
+   * CALCULATE MINIMUM AMOUNT TO PAY
+   * @param data - Installment data
+   * @param clientPayment - Payment amount
+   * @param currentDate - Current date
+   * @param dailyInterestRate -  - Daily interest rate in purchase
+   * @returns {{Promise<{overdue: boolean; totalOverdue: number}>}
+   */
+  private async calculateCurrentPayment(
+    data: Installment,
+    clientPayment: number,
+    currentDate: Date,
+    dailyInterestRate: number
+  ): Promise<ICalculatePayment> {
+    let isTotalDebt = false;
+    //AMOUNT IS THE TOTAL TO PAY IN THE CURRENT INSTALLMENT
+    let fullPayment = data.amount;
+    let penaltyFee = 0;
+    //IS THE ADITIONAL AMOUNT TO PAY - OVER INTEREST - AND APPLY IN THE DEBT WITHOUT INTEREST
+    let capital = 0;
+
+    const overdueData = this.calculateOverdue(
+      data.amount,
+      currentDate,
+      data.deadlineAt,
+      dailyInterestRate
+    );
+    fullPayment = overdueData.amount;
+    penaltyFee = overdueData.overdue;
+
+    this.logger.log(`Overdue: ${overdueData.isOverdue}`);
+    this.logger.log(`Overdue days: ${overdueData.daysOverdue}`);
+    this.logger.log(`Overdue interest: $ ${overdueData.overdue}`);
+    this.logger.log(`Total paid: $ ${overdueData.amount}`);
+
+    //VALIDATE IF CLIENT PAY IS LESS THAN INSTALLMENT AMOUNT
+    if (clientPayment < fullPayment) {
+      this.purchaseException(
+        `The client's payment is less than the installment amount - full payment: ${fullPayment}`
+      );
+    }
+
+    //VALIDATE IF CLIENT PAY IS GREATER THAN ALL DEBT
+    const totalDebt = data.debt + fullPayment;
+    if (clientPayment > totalDebt) {
+      this.purchaseException(
+        `The payment is greater than the total debt - $ ${totalDebt}`
+      );
+    }
+
+    //VALIDATE IF CLIENT PAY IS EQUAL TO TOTAL DEBT
+    if (clientPayment === totalDebt) {
+      isTotalDebt = true;
+    }
+
+    //CALCULATE CREDIT TO APPLIED CAPITAL
+    const capitalBond = clientPayment - fullPayment;
+    let currentDebt = data.debt;
+    if (capitalBond > 0) {
+      capital = capitalBond;
+      currentDebt -= capitalBond;
+      this.logger.log(`Aditional Capital Bond: $ ${capitalBond}`);
+    }
+
+    return {
+      overdue: false,
+      debt: currentDebt,
+      capital,
+      penaltyFee: penaltyFee,
+      isTotalDebt,
+    };
+  }
+
+  /**
+   * VALIDATE AND CALCUATE OVERDUE
+   * @param amount - Amount to pay
+   * @param payDate - Payment date
+   * @param deadLineDate - Deadline date
+   * @param interestRate - Interest rate
+   * @returns {{isOverdue: boolean; overdue: number; amount: number}}
+   */
+  private calculateOverdue(
+    amount: number,
+    payDate: Date,
+    deadLineDate: Date,
+    interestRate: number
+  ): {
+    isOverdue: boolean;
+    overdue: number;
+    amount: number;
+    daysOverdue: number;
+  } {
+    let isOverdue = false;
+    let overdue = 0;
+    //AMOUNT IS THE TOTAL TO PAY IN THE CURRENT INSTALLMENT
+    let fullPayment = amount;
+    const daysOverdue = differenceInDays(payDate, deadLineDate);
+    if (daysOverdue > 0) {
+      isOverdue = true;
+      const interest = fullPayment * interestRate;
+      overdue = interest * daysOverdue;
+      fullPayment += overdue;
+    }
+    return {
+      isOverdue,
+      overdue,
+      amount: fullPayment,
+      daysOverdue,
+    };
+  }
+
+  /**
+   *
+   * @param calculateMonthlyInterestRate
+   */
+  private paymentValidations(
+    installment: Installment,
+    invoice: InvoiceInfo
+  ): void {
+    //VALIDATE IF PURCHASE IS FINANCED
+    if (!invoice.financed) {
+      this.purchaseException('Purchase is not financed');
+    }
+
+    //VERIFY IF CURRENT SHARE IS LESS THAN TOTAL SHARES
+    if (invoice.currentShare >= invoice.share) {
+      this.purchaseException('All installments have been paid');
+    }
+
+    //VERIFY IF INSTALLMENT EXISTS
+    if (!installment) {
+      this.purchaseException('Installment not found');
+    }
+
+    //VALIDATE IF INSTALLMENT WAS PAID
+    if (installment.payment) {
+      this.purchaseException('Installment has already been paid');
+    }
   }
 
   /**
@@ -792,7 +1063,7 @@ export class PurchaseService {
         );
       } else if (isNext) {
         this.logger.log(`🤑🤑 Generating Next Installment`);
-        const lastInstallment = purchase.installments[-1];
+        const lastInstallment = purchase.installments.pop();
         newI = await this.genrateNewInstallment(
           lastInstallment.debt,
           totalShares,
@@ -802,20 +1073,21 @@ export class PurchaseService {
         );
       } else if (isOverdue) {
         this.logger.log(`😡😡 Generating Overdue Installment`);
-        const lastInstallment = purchase.installments[-1];
-        const debt = lastInstallment.debt + lastInstallment.amount;
+        const lastInstallment = purchase.installments.pop();
+        // const debt = lastInstallment.debt + lastInstallment.amount;
         newI = await this.genrateNewInstallment(
-          debt,
+          lastInstallment.debt,
           totalShares,
           currentShare,
           anualInterest,
           purchaseDate
         );
-        lastInstallment.paymentMethod = PaymentMethod.NOT_DEFINED;
-        lastInstallment.amountPaid = 0;
-        lastInstallment.payment = false;
+        //lastInstallment.paymentMethod = PaymentMethod.NOT_DEFINED;
+        //lastInstallment.amountPaid = 0;
+        //lastInstallment.payment = false;
         lastInstallment.overdue = true;
-        lastInstallment.paymentAt = null;
+        // lastInstallment.penaltyFee = 0;
+        //lastInstallment.paymentAt = null;
         await this.updateInstallment(pId, lastInstallment._id, lastInstallment);
       } else {
         this.logger.log(`🤔🤔💀 Error validating installment type`);
@@ -918,6 +1190,8 @@ export class PurchaseService {
       amountPaid: 0,
       paymentAt: null,
       payment: false,
+      penaltyFee: 0,
+      capital: 0,
       // ---------------------
       debt: parseFloat((Math.round(newDebt * 1000) / 1000).toFixed(2)),
       interest: parseFloat(interest.toFixed(2)),
@@ -942,10 +1216,17 @@ export class PurchaseService {
         $set: {
           'installments.$.paymentMethod': installment.paymentMethod,
           'installments.$.amountPaid': installment.amountPaid,
+          'installments.$.paymentAt': installment.paymentAt,
           'installments.$.payment': installment.payment,
           'installments.$.overdue': installment.overdue,
-          'installments.$.paymentAt': installment.paymentAt,
+          'installments.$.debt': installment.debt,
+          'installments.$.penaltyFee': installment.penaltyFee,
+          'installments.$.capital': installment.capital,
         },
+      },
+      {
+        new: true,
+        projection: { installments: 1 },
       }
     );
     if (!result) {

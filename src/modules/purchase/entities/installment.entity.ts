@@ -35,6 +35,20 @@ export class Installment {
   })
   public amountPaid: number;
 
+  //PENALTY FEE - CALCULATED ON PAYMENT - MUST BE 0 IF PAYMENT IS ON TIME
+  @Prop({
+    required: true,
+    type: Number,
+  })
+  public penaltyFee: number;
+
+  //CAPITAL - CALCULATED ON PAYMENT
+  @Prop({
+    required: true,
+    type: Number,
+  })
+  public capital: number;
+
   //INTEREST - CALLCULATED ON GENERATED
   @Prop({
     required: true,

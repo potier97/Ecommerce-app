@@ -7,7 +7,6 @@ export interface IGeneratedPurchase {
   customer: ICustomerPurchase;
   invoice: IInvoice;
   installments: IInstallments[];
-  //   totalShares: number;
   lastInstallment: IInstallments;
   isFirst: boolean;
   isNext: boolean;
